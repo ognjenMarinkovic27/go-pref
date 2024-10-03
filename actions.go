@@ -44,6 +44,10 @@ const (
 	SansBid       = 7
 )
 
+type BidAction struct {
+	PlayerInfo
+}
+
 func (action BidAction) validate(g *Game) bool {
 	if g.gameState == BiddingGameState &&
 		g.isCurrentPlayer(action.player) &&
@@ -68,6 +72,10 @@ func (action BidAction) apply(g *Game) {
 	g.moveToNextActivePlayer()
 }
 
+type PassBidAction struct {
+	PlayerInfo
+}
+
 func (action PassBidAction) validate(g *Game) bool {
 	return g.gameState == BiddingGameState && g.isCurrentPlayer(action.player)
 }
@@ -83,14 +91,6 @@ func (action PassBidAction) apply(g *Game) {
 	}
 
 	g.moveToNextActivePlayer()
-}
-
-type BidAction struct {
-	PlayerInfo
-}
-
-type PassBidAction struct {
-	PlayerInfo
 }
 
 type PlayNowBidAction struct {
