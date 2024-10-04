@@ -7,15 +7,15 @@ import (
 )
 
 type PlayerScore struct {
-	prevSoups int
-	score     int
-	nextSoups int
+	score int
+	soups map[*Player]int
 }
 
 type Player struct {
-	name  string
-	hand  [10]Card
-	score PlayerScore
+	name   string
+	hand   [10]Card
+	played map[Card]bool
+	score  PlayerScore
 
 	client *Client
 	next   *Player
@@ -25,9 +25,7 @@ func newPlayer(name string, client *Client) *Player {
 	p := &Player{
 		name: name,
 		score: PlayerScore{
-			prevSoups: 0,
-			score:     0,
-			nextSoups: 0,
+			soups: make(map[*Player]int),
 		},
 		client: client,
 	}
@@ -40,6 +38,7 @@ func messageToAction(message []byte, p *Player) Action {
 
 	strMessage := string(message)
 
+	// TODO: clean up
 	switch strMessage[0] {
 	case 'r':
 		return ReadyAction{PlayerInfo: pi}
@@ -74,9 +73,26 @@ func messageToAction(message []byte, p *Player) Action {
 
 		return ChooseDiscardCardsAction{
 			cards: [2]Card{
-				stringToCard(strMessage[1:3]), 
+				stringToCard(strMessage[1:3]),
 				stringToCard(strMessage[3:5]),
-			}, 
+			},
+			PlayerInfo: pi,
+		}
+	case 's':
+		if len(strMessage) != 3 {
+			p.client.send <- []byte("Message Length Invalid")
+			return InvalidAction{PlayerInfo: pi}
+		}
+
+		matched, _ := regexp.MatchString("[7-9TQJKA][2345♠♢♡♣]", strMessage[1:])
+
+		if !matched {
+			p.client.send <- []byte("Message Format Incorrect")
+			return InvalidAction{PlayerInfo: pi}
+		}
+
+		return PlayCardAction{
+			card:       stringToCard(strMessage[1:]),
 			PlayerInfo: pi,
 		}
 	default:

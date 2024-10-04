@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strconv"
 )
 
 type GameState int
@@ -31,6 +32,13 @@ const (
 	SansGameType     GameType = 7
 )
 
+var gameTypeToSuit = map[GameType]CardSuit{
+	SpadesGameType:   Spades,
+	DiamondsGameType: Diamonds,
+	HeartsGameType:   Hearts,
+	ClubsGameType:    Clubs,
+}
+
 type Game struct {
 	gameState        GameState
 	dealerPlayer     *Player
@@ -45,19 +53,22 @@ type Game struct {
 }
 
 type HandState struct {
-	firstPlayer       *Player
-	currentPlayer     *Player
-	bidWinner         *Player
-	currentBid        Bid
-	passed            map[*Player]bool
-	currentGameType   GameType
-	currentRoundState RoundState
-	hiddenCards       [2]Card
+	firstPlayer   *Player
+	currentPlayer *Player
+	bidWinner     *Player
+	bid           Bid
+	passed        map[*Player]bool
+	gameType      GameType
+	roundsPlayed  int
+	roundState    RoundState
+	roundsWon     map[*Player]int
+	hiddenCards   [2]Card
 }
 
 type RoundState struct {
-	empty       bool
-	currentSuit CardSuit
+	empty bool
+	suit  CardSuit
+	table map[*Player]Card
 }
 
 func newGame(actions chan Action, room *Room) *Game {
@@ -137,6 +148,16 @@ func (g *Game) run() {
 	}
 }
 
+func (g *Game) sendClientsTheirScores() {
+	for p := range g.players {
+		p.client.send <- []byte("Score " + strconv.Itoa(p.score.score))
+
+		for other, soup := range p.score.soups {
+			p.client.send <- []byte(other.name + ": " + strconv.Itoa(soup))
+		}
+	}
+}
+
 func (g *Game) makeReady(p *Player) {
 	g.ready[p] = true
 	g.room.broadcast <- []byte(p.name + "is ready!")
@@ -146,28 +167,33 @@ func (g *Game) isEveryoneReady() bool {
 	return len(g.ready) == 3
 }
 
-func (g *Game) startGame() {
+func (g *Game) startGame(startingScore int) {
 	g.room.broadcast <- []byte("Starting game")
 	g.started = true
-	g.setupPlayers()
+	g.setupPlayers(startingScore)
 	g.startNewHand()
 }
 
-func (g *Game) setupPlayers() {
+func (g *Game) setupPlayers(startingScore int) {
 	var prev *Player = nil
 	var first *Player = nil
 	count := 0
 	for p := range g.players {
 		if prev != nil {
 			prev.next = p
+			p.score.soups[prev] = 0
+			prev.score.soups[p] = 0
 		} else {
 			g.dealerPlayer = p
 			first = p
 		}
 
+		p.score.score = startingScore
+
 		count++
 		if count == 3 {
 			p.next = first
+			p.score.soups[first] = 0
 		}
 
 		prev = p
@@ -179,17 +205,24 @@ func (g *Game) startNewHand() {
 
 	g.gameState = BiddingGameState
 	g.currentHandState = HandState{
-		firstPlayer:     nil,
-		currentPlayer:   g.nextPlayer(g.dealerPlayer),
-		passed:          make(map[*Player]bool),
-		currentBid:      TwoBid,
-		currentGameType: NoneGameType,
+		firstPlayer:   nil,
+		currentPlayer: g.nextPlayer(g.dealerPlayer),
+		passed:        make(map[*Player]bool),
+		bid:           TwoBid,
+		gameType:      NoneGameType,
+		roundsPlayed:  0,
+		roundState: RoundState{
+			empty: true,
+			table: make(map[*Player]Card),
+		},
+		roundsWon: make(map[*Player]int),
 	}
 
 	g.dealerPlayer = g.nextPlayer(g.dealerPlayer)
 
 	g.dealCards()
 	g.sendClientsTheirHands()
+	g.sendClientsTheirScores()
 }
 
 func (g *Game) sendClientsTheirHands() {
@@ -216,7 +249,7 @@ func (g *Game) isCurrentPlayer(p *Player) bool {
 }
 
 func (g *Game) isBiddingMaxed() bool {
-	return g.currentHandState.currentBid == SansBid
+	return g.currentHandState.bid == SansBid
 }
 
 func (g *Game) hasPassed(p *Player) bool {
@@ -229,6 +262,16 @@ func (g *Game) isFirstBid() bool {
 
 func (g *Game) isPlayerFirstToBid(p *Player) bool {
 	return g.currentHandState.firstPlayer == p
+}
+
+func (g *Game) chooseGameType(gameType GameType) {
+	g.currentHandState.gameType = gameType
+	trumpSuit, exists := gameTypeToSuit[gameType]
+	if exists {
+		g.currentHandState.roundState.suit = trumpSuit
+	}
+
+	g.room.broadcast <- []byte(g.currentHandState.currentPlayer.name + " chose game type: " + strconv.Itoa(int(gameType)))
 }
 
 func (g *Game) resetPassed() {
@@ -271,4 +314,78 @@ func (g *Game) isEveryonePassed() bool {
 
 func (g *Game) nextPlayer(p *Player) *Player {
 	return p.next
+}
+
+func (g *Game) playCard(p *Player, card Card) {
+	g.currentHandState.roundState.table[p] = card
+	g.currentHandState.roundState.empty = false
+
+	g.room.broadcast <- []byte(p.name + " played " + cardToString(card))
+}
+
+func (g *Game) isCurrentRoundOver() bool {
+	return len(g.currentHandState.roundState.table) == 3-len(g.currentHandState.passed)
+}
+
+func (g *Game) getTrumpSuit() (CardSuit, bool) {
+	cs, ok := gameTypeToSuit[g.currentHandState.gameType]
+	return cs, ok
+}
+
+func (g *Game) getRoundWinner() *Player {
+	var roundWinner *Player = nil
+	var bestCard Card
+	for p, c := range g.currentHandState.roundState.table {
+		if roundWinner == nil {
+			roundWinner = p
+			bestCard = c
+		} else {
+			trump, _ := g.getTrumpSuit()
+			if (c.suit == trump && (bestCard.suit != trump || bestCard.value < c.value)) ||
+				c.suit != trump && bestCard.value < c.value {
+				roundWinner = p
+				bestCard = c
+			}
+		}
+	}
+
+	return roundWinner
+}
+
+func (g *Game) startNextRound() {
+	p := g.getRoundWinner()
+	g.currentHandState.roundState.empty = true
+	clear(g.currentHandState.roundState.table)
+	g.currentHandState.currentPlayer = p
+	g.currentHandState.roundsWon[p]++
+}
+
+func (g *Game) isHandOver() bool {
+	return g.currentHandState.roundsPlayed == 10
+}
+
+func (g *Game) checkSuccess() {
+	owner := g.currentHandState.bidWinner
+	if g.currentHandState.roundsWon[owner] >= 6 {
+		owner.score.score -= int(g.currentHandState.gameType) * 2
+		g.room.broadcast <- []byte(owner.name + " succeded")
+	} else {
+		owner.score.score += int(g.currentHandState.gameType) * 2
+		g.room.broadcast <- []byte(owner.name + " failed")
+	}
+
+	for p := range g.players {
+		if p == owner {
+			continue
+		}
+
+		if g.currentHandState.roundsWon[p] >= 2 || 10-g.currentHandState.roundsWon[owner] <= 6 {
+			g.room.broadcast <- []byte(p.name + " succeded")
+		} else {
+			owner.score.score += int(g.currentHandState.gameType) * 2
+			g.room.broadcast <- []byte(p.name + " failed :(")
+		}
+
+		p.score.soups[owner] += g.currentHandState.roundsWon[p] * int(g.currentHandState.gameType) * 2
+	}
 }

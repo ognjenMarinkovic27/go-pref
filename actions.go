@@ -34,7 +34,7 @@ func (action ReadyAction) validate(g *Game) bool {
 func (action ReadyAction) apply(g *Game) {
 	g.makeReady(action.player)
 	if g.isEveryoneReady() {
-		g.startGame()
+		g.startGame(60)
 	}
 }
 
@@ -71,12 +71,18 @@ func (action BidAction) apply(g *Game) {
 	}
 
 	if !g.isPlayerFirstToBid(action.player) {
-		g.currentHandState.currentBid++
+		g.currentHandState.bid++
 	}
 
-	g.room.broadcast <- []byte("New bid from " + action.player.name + ": " + strconv.Itoa(int(g.currentHandState.currentBid)))
+	g.room.broadcast <- []byte("New bid from " + action.player.name + ": " + strconv.Itoa(int(g.currentHandState.bid)))
 	g.currentHandState.bidWinner = action.player
-	g.moveToNextActivePlayer()
+	if g.isBiddingWon() {
+		g.transitionToState(ChoosingGameTypeGameState)
+		g.makeNonPassedPlayerCurrent()
+		g.room.broadcast <- []byte(g.currentHandState.bidWinner.name + " is choosing game type")
+	} else {
+		g.moveToNextActivePlayer()
+	}
 }
 
 type PassBidAction struct {
@@ -118,7 +124,7 @@ type ChooseGameTypeAction struct {
 func (action ChooseGameTypeAction) validate(g *Game) bool {
 	if !g.isCurrentPlayer(action.player) ||
 		g.gameState != ChoosingGameTypeGameState ||
-		action.gameType < GameType(g.currentHandState.currentBid) {
+		action.gameType < GameType(g.currentHandState.bid) {
 		return false
 	}
 
@@ -126,8 +132,7 @@ func (action ChooseGameTypeAction) validate(g *Game) bool {
 }
 
 func (action ChooseGameTypeAction) apply(g *Game) {
-	g.currentHandState.currentGameType = action.gameType
-	g.room.broadcast <- []byte(g.currentHandState.currentPlayer.name + " chose game type: " + strconv.Itoa(int(action.gameType)))
+	g.chooseGameType(action.gameType)
 	g.gameState = RespondingToGameTypeGameState
 	g.resetPassed()
 	g.moveToNextActivePlayer()
@@ -151,6 +156,13 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 	if action.pass {
 		g.room.broadcast <- []byte(g.currentHandState.currentPlayer.name + "is not coming")
 		g.makePlayerPassed(action.player)
+
+		if len(g.currentHandState.passed) == 2 {
+			g.room.broadcast <- []byte("Nobody is coming! " + g.currentHandState.bidWinner.name + " succeeds!")
+			g.currentHandState.bidWinner.score.score -= int(g.currentHandState.gameType) * 2
+			g.startNewHand()
+			return
+		}
 	} else {
 		g.room.broadcast <- []byte(g.currentHandState.currentPlayer.name + "is coming!!!")
 	}
@@ -226,6 +238,19 @@ func (action ChooseDiscardCardsAction) apply(g *Game) {
 
 	action.player.client.send <- []byte("Your new hand:")
 	g.sendHandToClient(action.player)
+
+	if g.currentHandState.bid == SansBid {
+		beforePlayer := g.currentHandState.currentPlayer.next.next
+		if g.currentHandState.passed[beforePlayer] {
+			g.currentHandState.currentPlayer = action.player.next
+		} else {
+			g.currentHandState.currentPlayer = beforePlayer
+		}
+	} else {
+		g.currentHandState.currentPlayer = g.dealerPlayer.next
+	}
+
+	g.transitionToState(PlayingHandGameState)
 }
 
 func getIndexOfSwapIn(currentSwapInIndex int, hiddenCards, discardCards []Card) int {
@@ -261,7 +286,55 @@ func (action PlayCardAction) validate(g *Game) bool {
 		return false
 	}
 
-	return true
+	if findCard(action.card, action.player.hand[:]) < 0 {
+		return false
+	}
+
+	if g.currentHandState.roundState.empty {
+		return !action.player.played[action.card]
+	}
+
+	hasAppropriateSuit := action.player.hasSuit(g.currentHandState.roundState.suit)
+	trumpSuit, trumpSuitExists := g.getTrumpSuit()
+	hasTrumpSuit := trumpSuitExists && action.player.hasSuit(trumpSuit)
+
+	canPlayAppropriateCard := hasAppropriateSuit && g.currentHandState.roundState.suit == action.card.suit
+	canPlayTrumpCard := !hasAppropriateSuit && hasTrumpSuit && action.card.suit == trumpSuit
+	canPlayAnyCard := !hasAppropriateSuit && !hasTrumpSuit
+
+	if canPlayAppropriateCard || canPlayTrumpCard || canPlayAnyCard {
+		return !action.player.played[action.card]
+	}
+
+	return false
+}
+
+func (p *Player) hasSuit(suit CardSuit) bool {
+	for _, card := range p.hand {
+		if card.suit == suit && !p.played[card] {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (action PlayCardAction) apply(g *Game) {
+	g.playCard(action.player, action.card)
+
+	if g.isCurrentRoundOver() {
+		p := g.getRoundWinner()
+		g.room.broadcast <- []byte(p.name + " takes the round")
+		g.startNextRound()
+
+		g.currentHandState.roundsPlayed++
+		if g.isHandOver() {
+			g.room.broadcast <- []byte("Hand Done")
+			g.checkSuccess()
+		}
+	} else {
+		g.moveToNextActivePlayer()
+	}
 }
 
 type InvalidAction struct {
