@@ -56,7 +56,7 @@ func (r *Room) run() {
 		select {
 		case client := <-r.register:
 			r.clients[client] = true
-			p := newPlayer("ogi"+strconv.FormatInt(int64(pid), 10), pid, client)
+			p := newPlayer("ogi"+strconv.FormatInt(int64(pid), 10), client)
 			r.game.addPlayer(p)
 			pid++
 			client.player = p

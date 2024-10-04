@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
-	"strconv"
 )
 
 type GameState int
 
 const (
-	WaitingGameState          GameState = 0
-	BiddingGameState          GameState = 1
-	PlayNowGameState          GameState = 2
-	ClaimPlayNowTypeGameState GameState = 3
-	ChoosingCardsGameState    GameState = 4
-	ChoosingGameTypeGameState GameState = 5
-	PlayingHandGameState      GameState = 6
+	WaitingGameState              GameState = 0
+	BiddingGameState              GameState = 1
+	PlayNowGameState              GameState = 2
+	ClaimPlayNowTypeGameState     GameState = 3
+	ChoosingGameTypeGameState     GameState = 4
+	RespondingToGameTypeGameState GameState = 5
+	ChoosingCardsGameState        GameState = 6
+	PlayingHandGameState          GameState = 7
 )
 
 type GameType int
@@ -33,22 +33,23 @@ const (
 
 type Game struct {
 	gameState        GameState
-	dealerPlayer     int
+	dealerPlayer     *Player
 	currentHandState HandState
 	players          map[*Player]bool
 	actions          chan Action
 
-	ready   map[int]bool
+	ready   map[*Player]bool
 	started bool
 
 	room *Room
 }
 
 type HandState struct {
-	firstPlayer       int
-	currentPlayer     int
+	firstPlayer       *Player
+	currentPlayer     *Player
+	bidWinner         *Player
 	currentBid        Bid
-	passedBid         map[int]bool
+	passed            map[*Player]bool
 	currentGameType   GameType
 	currentRoundState RoundState
 	hiddenCards       [2]Card
@@ -64,7 +65,7 @@ func newGame(actions chan Action, room *Room) *Game {
 		gameState: WaitingGameState,
 		players:   make(map[*Player]bool),
 		actions:   actions,
-		ready:     make(map[int]bool),
+		ready:     make(map[*Player]bool),
 		started:   false,
 		room:      room,
 	}
@@ -122,23 +123,28 @@ func (g *Game) dealCards() {
 		})
 		s += 10
 	}
+
+	g.currentHandState.hiddenCards[0] = deck[30]
+	g.currentHandState.hiddenCards[1] = deck[31]
 }
 
 func (g *Game) run() {
 	for {
 		fmt.Println("GAme")
 		if g.started {
-			g.room.broadcast <- []byte("Turn: " + strconv.Itoa(g.currentHandState.currentPlayer))
+			g.room.broadcast <- []byte("Turn: " + g.currentHandState.currentPlayer.name)
 		}
 		action := <-g.actions
 		if g.validate(action) {
 			g.apply(action)
+		} else {
+			action.getPlayer().client.send <- []byte("Invalid action")
 		}
 	}
 }
 
 func (g *Game) makeReady(p *Player) {
-	g.ready[p.id] = true
+	g.ready[p] = true
 	g.room.broadcast <- []byte(p.name + "is ready!")
 }
 
@@ -149,8 +155,29 @@ func (g *Game) isEveryoneReady() bool {
 func (g *Game) startGame() {
 	g.room.broadcast <- []byte("Starting game")
 	g.started = true
-	g.dealerPlayer = 2
+	g.setupPlayers()
 	g.startNewHand()
+}
+
+func (g *Game) setupPlayers() {
+	var prev *Player = nil
+	var first *Player = nil
+	count := 0
+	for p := range g.players {
+		if prev != nil {
+			prev.next = p
+		} else {
+			g.dealerPlayer = p
+			first = p
+		}
+
+		count++
+		if count == 3 {
+			p.next = first
+		}
+
+		prev = p
+	}
 }
 
 func (g *Game) startNewHand() {
@@ -158,14 +185,14 @@ func (g *Game) startNewHand() {
 
 	g.gameState = BiddingGameState
 	g.currentHandState = HandState{
-		firstPlayer:     -1,
-		currentPlayer:   g.nextPlayerId(g.dealerPlayer),
-		passedBid:       make(map[int]bool),
+		firstPlayer:     nil,
+		currentPlayer:   g.nextPlayer(g.dealerPlayer),
+		passed:          make(map[*Player]bool),
 		currentBid:      TwoBid,
 		currentGameType: NoneGameType,
 	}
 
-	g.dealerPlayer = g.nextPlayerId(g.dealerPlayer)
+	g.dealerPlayer = g.nextPlayer(g.dealerPlayer)
 
 	g.dealCards()
 	g.sendClientsTheirHands()
@@ -187,7 +214,7 @@ func (g *Game) sendClientsTheirHands() {
 }
 
 func (g *Game) isCurrentPlayer(p *Player) bool {
-	return g.currentHandState.currentPlayer == p.id
+	return g.currentHandState.currentPlayer == p
 }
 
 func (g *Game) isBiddingMaxed() bool {
@@ -195,49 +222,52 @@ func (g *Game) isBiddingMaxed() bool {
 }
 
 func (g *Game) hasPassed(p *Player) bool {
-	return g.currentHandState.passedBid[p.id]
+	return g.currentHandState.passed[p]
 }
 
 func (g *Game) isFirstBid() bool {
-	return g.currentHandState.firstPlayer == -1
+	return g.currentHandState.firstPlayer == nil
 }
 
 func (g *Game) isPlayerFirstToBid(p *Player) bool {
-	return g.currentHandState.firstPlayer == p.id
+	return g.currentHandState.firstPlayer == p
+}
+
+func (g *Game) resetPassed() {
+	clear(g.currentHandState.passed)
 }
 
 func (g *Game) moveToNextActivePlayer() {
-	g.currentHandState.currentPlayer = g.nextPlayerId(g.currentHandState.currentPlayer)
+	g.currentHandState.currentPlayer = g.nextPlayer(g.currentHandState.currentPlayer)
 
-	if g.currentHandState.passedBid[g.currentHandState.currentPlayer] {
-		g.currentHandState.currentPlayer = g.nextPlayerId(g.currentHandState.currentPlayer)
+	if g.currentHandState.passed[g.currentHandState.currentPlayer] {
+		g.currentHandState.currentPlayer = g.nextPlayer(g.currentHandState.currentPlayer)
 	}
 }
 
 func (g *Game) makePlayerPassed(p *Player) {
-	g.currentHandState.passedBid[p.id] = true
+	g.currentHandState.passed[p] = true
 	g.room.broadcast <- []byte(p.name + " passed")
 }
 
 func (g *Game) isBiddingWon() bool {
-	return len(g.currentHandState.passedBid) == 2 && g.currentHandState.firstPlayer != -1
+	return len(g.currentHandState.passed) == 2 && g.currentHandState.firstPlayer != nil
 }
 
-func (g *Game) transitionToChooseGameType() {
-	g.gameState = ChoosingGameTypeGameState
+func (g *Game) transitionToState(state GameState) {
+	g.gameState = state
 	for p := range g.players {
-		if !g.currentHandState.passedBid[p.id] {
-			g.currentHandState.currentPlayer = p.id
-			g.room.broadcast <- []byte(p.name + " is choosing the game type")
+		if !g.currentHandState.passed[p] {
+			g.currentHandState.currentPlayer = p
 			break
 		}
 	}
 }
 
 func (g *Game) isEveryonePassed() bool {
-	return len(g.currentHandState.passedBid) == 3
+	return len(g.currentHandState.passed) == 3
 }
 
-func (g *Game) nextPlayerId(id int) int {
-	return (id + 1) % 3
+func (g *Game) nextPlayer(p *Player) *Player {
+	return p.next
 }

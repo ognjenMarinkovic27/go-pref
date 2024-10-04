@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 )
 
 type PlayerScore struct {
@@ -12,17 +13,16 @@ type PlayerScore struct {
 
 type Player struct {
 	name  string
-	id    int
 	hand  [10]Card
 	score PlayerScore
 
 	client *Client
+	next   *Player
 }
 
-func newPlayer(name string, id int, client *Client) *Player {
-	return &Player{
+func newPlayer(name string, client *Client) *Player {
+	p := &Player{
 		name: name,
-		id:   id,
 		score: PlayerScore{
 			prevSoups: 0,
 			score:     0,
@@ -30,6 +30,8 @@ func newPlayer(name string, id int, client *Client) *Player {
 		},
 		client: client,
 	}
+	p.next = p
+	return p
 }
 
 func messageToAction(message []byte, p *Player) Action {
@@ -44,8 +46,20 @@ func messageToAction(message []byte, p *Player) Action {
 		return BidAction{PlayerInfo: pi}
 	case 'p':
 		return PassBidAction{PlayerInfo: pi}
+	case 'c':
+		if len(strMessage) > 1 {
+			val, err := strconv.Atoi(strMessage[1:])
+			if err == nil && val <= int(SansGameType) {
+				return ChooseGameTypeAction{gameType: GameType(val), PlayerInfo: pi}
+			}
+		}
+		return InvalidAction{PlayerInfo: pi}
+	case 'n':
+		return RespondToGameTypeAction{pass: true, PlayerInfo: pi}
+	case 'y':
+		return RespondToGameTypeAction{pass: false, PlayerInfo: pi}
 	default:
 		fmt.Println("Invalid action from", p.name)
-		return nil
+		return InvalidAction{PlayerInfo: pi}
 	}
 }
