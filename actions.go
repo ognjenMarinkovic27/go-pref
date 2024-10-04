@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strconv"
 )
 
@@ -92,6 +93,7 @@ func (action PassBidAction) apply(g *Game) {
 
 	if g.isBiddingWon() {
 		g.transitionToState(ChoosingGameTypeGameState)
+		g.makeNonPassedPlayerCurrent()
 		g.room.broadcast <- []byte(g.currentHandState.bidWinner.name + " is choosing game type")
 		return
 	}
@@ -157,7 +159,7 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 
 	if g.isCurrentPlayer(g.currentHandState.bidWinner) {
 		g.transitionToState(ChoosingCardsGameState)
-		g.room.broadcast <- []byte(g.currentHandState.bidWinner.name + " is choosing cards")
+		g.room.broadcast <- []byte(g.currentHandState.bidWinner.name + g.currentHandState.currentPlayer.name + " is choosing cards")
 		g.currentHandState.bidWinner.client.send <- []byte("Hidden cards: " +
 			cardToString(g.currentHandState.hiddenCards[0]) + " " +
 			cardToString(g.currentHandState.hiddenCards[1]))
@@ -165,9 +167,89 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 }
 
 type ChooseDiscardCardsAction struct {
-	card1 Card
-	card2 Card
+	cards [2]Card
 	PlayerInfo
+}
+
+func (action ChooseDiscardCardsAction) validate(g *Game) bool {
+	if !g.isCurrentPlayer(action.player) ||
+		g.gameState != ChoosingCardsGameState {
+		return false
+	}
+
+	var found [2]bool
+
+	foundInHand := containsCards(action.cards[:], g.currentHandState.currentPlayer.hand[:])
+	foundInHidden := containsCards(action.cards[:], g.currentHandState.hiddenCards[:])
+
+	for i := range found {
+		found[i] = foundInHand[i] || foundInHidden[i]
+	}
+
+	println(foundInHand[0], foundInHand[1], foundInHidden[0], foundInHidden[1])
+	println(cardToString(action.cards[0]), cardToString(action.cards[1]))
+
+	return found[0] && found[1]
+}
+
+func containsCards(cards []Card, searchSet []Card) (found [2]bool) {
+	for _, card := range searchSet {
+		index := findCard(card, cards)
+
+		if index > 0 {
+			found[index] = true
+		}
+	}
+
+	return
+}
+
+func (action ChooseDiscardCardsAction) apply(g *Game) {
+	swapIndex := 0
+	for i := range g.currentHandState.hiddenCards {
+		if findCard(g.currentHandState.hiddenCards[i], action.cards[:]) > 0 {
+			swapIndex++
+		}
+	}
+
+	if swapIndex >= len(g.currentHandState.hiddenCards) {
+		return
+	}
+
+	for i := range action.cards {
+		if swapIndex >= len(g.currentHandState.hiddenCards) {
+			break
+		}
+
+		ci := findCard(action.cards[i], action.player.hand[:])
+		 
+		if ci > 0 {
+			action.player.hand[ci], action.cards[i] = 
+				action.cards[i], action.player.hand[ci]
+			swapIndex++
+		}
+	}
+
+	slices.SortFunc(action.player.hand[:], func(a, b Card) int {
+		if a.suit-b.suit == 0 {
+			return int(b.value - a.value)
+		} else {
+			return int(a.suit - b.suit)
+		}
+	})
+
+	action.player.client.send <- []byte("Your new hand:")
+	g.sendHandToClient(action.player)
+}
+
+func findCard(card Card, searchSet []Card) int {
+	for i := range searchSet {
+		if card == searchSet[i] {
+			return i
+		}
+	}
+
+	return -1
 }
 
 type PlayCardAction struct {

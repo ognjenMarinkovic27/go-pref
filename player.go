@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 )
 
@@ -58,6 +59,26 @@ func messageToAction(message []byte, p *Player) Action {
 		return RespondToGameTypeAction{pass: true, PlayerInfo: pi}
 	case 'y':
 		return RespondToGameTypeAction{pass: false, PlayerInfo: pi}
+	case 'd':
+		if len(strMessage) < 5 {
+			p.client.send <- []byte("Message Too Short")
+			return InvalidAction{PlayerInfo: pi}
+		}
+
+		matched, _ := regexp.MatchString("([7-9TQJKA][2345♠♢♡♣]){2,2}", strMessage[1:])
+
+		if !matched {
+			p.client.send <- []byte("Message Format Incorrect")
+			return InvalidAction{PlayerInfo: pi}
+		}
+
+		return ChooseDiscardCardsAction{
+			cards: [2]Card{
+				stringToCard(strMessage[1:3]), 
+				stringToCard(strMessage[3:5]),
+			}, 
+			PlayerInfo: pi,
+		}
 	default:
 		fmt.Println("Invalid action from", p.name)
 		return InvalidAction{PlayerInfo: pi}

@@ -200,17 +200,21 @@ func (g *Game) startNewHand() {
 
 func (g *Game) sendClientsTheirHands() {
 	for p := range g.players {
-		str := ""
-
-		for i, c := range p.hand {
-			str += cardToString(c)
-			if i != 10 {
-				str += " "
-			}
-		}
-
-		p.client.send <- []byte(str)
+		g.sendHandToClient(p)
 	}
+}
+
+func (g *Game) sendHandToClient(p *Player) {
+	str := ""
+
+	for i, c := range p.hand {
+		str += cardToString(c)
+		if i != 10 {
+			str += " "
+		}
+	}
+
+	p.client.send <- []byte(str)
 }
 
 func (g *Game) isCurrentPlayer(p *Player) bool {
@@ -256,6 +260,9 @@ func (g *Game) isBiddingWon() bool {
 
 func (g *Game) transitionToState(state GameState) {
 	g.gameState = state
+}
+
+func (g *Game) makeNonPassedPlayerCurrent() {
 	for p := range g.players {
 		if !g.currentHandState.passed[p] {
 			g.currentHandState.currentPlayer = p

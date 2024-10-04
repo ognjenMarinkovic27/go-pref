@@ -13,12 +13,34 @@ var suitMap = map[CardSuit]string{
 	Clubs:    "♣",
 }
 
+var strToSuitMap = map[string]CardSuit{
+	"♠":   Spades,
+	"♢": Diamonds,
+	"♡": Hearts,
+	"♣": Clubs,
+	"2": Spades,
+	"3": Diamonds,
+	"4": Hearts,
+	"5": Clubs,
+}
+
 var valMap = map[CardValue]string{
 	Ten:   "T",
 	Jack:  "J",
 	Queen: "Q",
 	King:  "K",
 	Ace:   "A",
+}
+
+var strToValueMap = map[string]CardValue {
+	"7": Seven,
+	"8": Eight,
+	"9": Nine,
+	"T": Ten,
+	"J": Jack,
+	"Q": Queen,
+	"K": King,
+	"A": Ace,
 }
 
 func cardToString(card Card) string {
@@ -33,6 +55,12 @@ func cardToString(card Card) string {
 	str += suitMap[card.suit]
 
 	return str
+}
+
+func stringToCard(str string) (c Card) {
+	c.value = strToValueMap[str[0:1]]
+	c.suit = strToSuitMap[str[1:2]]
+	return
 }
 
 const (
