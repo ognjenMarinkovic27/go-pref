@@ -114,13 +114,7 @@ func (g *Game) dealCards() {
 	s := 0
 	for p := range g.players {
 		copy(p.hand[:], deck[s:s+10])
-		slices.SortFunc(p.hand[:], func(a, b Card) int {
-			if a.suit-b.suit == 0 {
-				return int(b.value - a.value)
-			} else {
-				return int(a.suit - b.suit)
-			}
-		})
+		slices.SortFunc(p.hand[:], cardCompare)
 		s += 10
 	}
 

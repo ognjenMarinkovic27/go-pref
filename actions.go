@@ -179,15 +179,12 @@ func (action ChooseDiscardCardsAction) validate(g *Game) bool {
 
 	var found [2]bool
 
-	foundInHand := containsCards(action.cards[:], g.currentHandState.currentPlayer.hand[:])
+	foundInHand := containsCards(action.cards[:], action.player.hand[:])
 	foundInHidden := containsCards(action.cards[:], g.currentHandState.hiddenCards[:])
 
 	for i := range found {
 		found[i] = foundInHand[i] || foundInHidden[i]
 	}
-
-	println(foundInHand[0], foundInHand[1], foundInHidden[0], foundInHidden[1])
-	println(cardToString(action.cards[0]), cardToString(action.cards[1]))
 
 	return found[0] && found[1]
 }
@@ -196,7 +193,7 @@ func containsCards(cards []Card, searchSet []Card) (found [2]bool) {
 	for _, card := range searchSet {
 		index := findCard(card, cards)
 
-		if index > 0 {
+		if index >= 0 {
 			found[index] = true
 		}
 	}
@@ -204,42 +201,43 @@ func containsCards(cards []Card, searchSet []Card) (found [2]bool) {
 	return
 }
 
+// TODO: ugly ass
 func (action ChooseDiscardCardsAction) apply(g *Game) {
-	swapIndex := 0
-	for i := range g.currentHandState.hiddenCards {
-		if findCard(g.currentHandState.hiddenCards[i], action.cards[:]) > 0 {
-			swapIndex++
-		}
-	}
+	swapInIndex := getIndexOfSwapIn(0, g.currentHandState.hiddenCards[:], action.cards[:])
 
-	if swapIndex >= len(g.currentHandState.hiddenCards) {
+	if swapInIndex >= len(g.currentHandState.hiddenCards) {
 		return
 	}
 
-	for i := range action.cards {
-		if swapIndex >= len(g.currentHandState.hiddenCards) {
+	for _, discardedCard := range action.cards {
+		if swapInIndex >= len(g.currentHandState.hiddenCards) {
 			break
 		}
 
-		ci := findCard(action.cards[i], action.player.hand[:])
-		 
-		if ci > 0 {
-			action.player.hand[ci], action.cards[i] = 
-				action.cards[i], action.player.hand[ci]
-			swapIndex++
+		cardIndexInHand := findCard(discardedCard, action.player.hand[:])
+
+		if cardIndexInHand >= 0 {
+			swapCards(&action.player.hand[cardIndexInHand], &g.currentHandState.hiddenCards[swapInIndex])
+			swapInIndex = getIndexOfSwapIn(swapInIndex, g.currentHandState.hiddenCards[:], action.cards[:])
 		}
 	}
 
-	slices.SortFunc(action.player.hand[:], func(a, b Card) int {
-		if a.suit-b.suit == 0 {
-			return int(b.value - a.value)
-		} else {
-			return int(a.suit - b.suit)
-		}
-	})
+	slices.SortFunc(action.player.hand[:], cardCompare)
 
 	action.player.client.send <- []byte("Your new hand:")
 	g.sendHandToClient(action.player)
+}
+
+func getIndexOfSwapIn(currentSwapInIndex int, hiddenCards, discardCards []Card) int {
+	for findCard(hiddenCards[currentSwapInIndex], discardCards) > 0 {
+		currentSwapInIndex++
+	}
+
+	return currentSwapInIndex
+}
+
+func swapCards(card1, card2 *Card) {
+	*card1, *card2 = *card2, *card1
 }
 
 func findCard(card Card, searchSet []Card) int {

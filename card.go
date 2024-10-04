@@ -14,7 +14,7 @@ var suitMap = map[CardSuit]string{
 }
 
 var strToSuitMap = map[string]CardSuit{
-	"♠":   Spades,
+	"♠": Spades,
 	"♢": Diamonds,
 	"♡": Hearts,
 	"♣": Clubs,
@@ -32,7 +32,7 @@ var valMap = map[CardValue]string{
 	Ace:   "A",
 }
 
-var strToValueMap = map[string]CardValue {
+var strToValueMap = map[string]CardValue{
 	"7": Seven,
 	"8": Eight,
 	"9": Nine,
@@ -86,4 +86,12 @@ const (
 type Card struct {
 	suit  CardSuit
 	value CardValue
+}
+
+func cardCompare(a, b Card) int {
+	if a.suit-b.suit == 0 {
+		return int(b.value - a.value)
+	} else {
+		return int(a.suit - b.suit)
+	}
 }
