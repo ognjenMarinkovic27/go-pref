@@ -227,6 +227,7 @@ func (g *Game) startNewHand() {
 
 	g.dealerPlayer = g.nextPlayer(g.dealerPlayer)
 
+	g.clearPlayedMaps()
 	g.dealCards()
 	g.sendClientsTheirHands()
 	g.sendClientsTheirScores()
@@ -255,12 +256,27 @@ func (g *Game) sendHandToClient(p *Player) {
 	p.client.send <- []byte(str)
 }
 
+func (g *Game) clearPlayedMaps() {
+	for p := range g.players {
+		clear(p.played)
+	}
+}
+
 func (g *Game) isCurrentPlayer(p *Player) bool {
 	return g.currentHandState.currentPlayer == p
 }
 
 func (g *Game) isBiddingMaxed() bool {
 	return g.currentHandState.bid == SansBid
+}
+
+func (g *Game) endBidding() {
+	g.transitionToState(ChoosingCardsGameState)
+	g.makeNonPassedPlayerCurrent()
+	g.room.broadcastString(g.getCurrentPlayer().name + " is choosing cards")
+	g.getCurrentPlayer().sendString("Hidden cards: " +
+		cardToString(g.currentHandState.hiddenCards[0]) + " " +
+		cardToString(g.currentHandState.hiddenCards[1]))
 }
 
 func (g *Game) hasPassed(p *Player) bool {

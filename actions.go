@@ -77,9 +77,7 @@ func (action BidAction) apply(g *Game) {
 	g.room.broadcastString("New bid from " + action.player.name + ": " + strconv.Itoa(int(g.currentHandState.bid)))
 	g.currentHandState.bidWinner = action.player
 	if g.isBiddingWon() {
-		g.transitionToState(ChoosingCardsGameState)
-		g.makeNonPassedPlayerCurrent()
-		g.room.broadcastString(action.player.name + " is choosing cards")
+		g.endBidding()
 	} else {
 		g.moveToNextActivePlayer()
 	}
@@ -98,12 +96,7 @@ func (action PassBidAction) apply(g *Game) {
 	g.room.broadcastString(action.player.name + " passed bidding")
 
 	if g.isBiddingWon() {
-		g.transitionToState(ChoosingCardsGameState)
-		g.makeNonPassedPlayerCurrent()
-		g.room.broadcastString(g.getCurrentPlayer().name + " is choosing cards")
-		g.getCurrentPlayer().sendString("Hidden cards: " +
-			cardToString(g.currentHandState.hiddenCards[0]) + " " +
-			cardToString(g.currentHandState.hiddenCards[1]))
+		g.endBidding()
 		return
 	}
 
@@ -167,7 +160,7 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 			return
 		}
 	} else {
-		g.room.broadcastString(g.currentHandState.currentPlayer.name + "is coming!!!")
+		g.room.broadcastString(g.currentHandState.currentPlayer.name + " is coming!!!")
 	}
 
 	g.moveToNextActivePlayer()
@@ -223,25 +216,16 @@ func containsCards(cards []Card, searchSet []Card) (found [2]bool) {
 	return
 }
 
-// TODO: ugly ass
 func (action ChooseDiscardCardsAction) apply(g *Game) {
-	swapInIndex := getIndexOfSwapIn(0, g.currentHandState.hiddenCards[:], action.cards[:])
-
-	if swapInIndex >= len(g.currentHandState.hiddenCards) {
-		return
-	}
-
-	for _, discardedCard := range action.cards {
-		if swapInIndex >= len(g.currentHandState.hiddenCards) {
-			break
+	for _, c := range action.cards {
+		index := findCard(c, action.player.hand[:])
+		if index < 0 {
+			continue
 		}
 
-		cardIndexInHand := findCard(discardedCard, action.player.hand[:])
+		swapIndex := findDifferentThan(action.cards[:], g.currentHandState.hiddenCards[:])
 
-		if cardIndexInHand >= 0 {
-			swapCards(&action.player.hand[cardIndexInHand], &g.currentHandState.hiddenCards[swapInIndex])
-			swapInIndex = getIndexOfSwapIn(swapInIndex, g.currentHandState.hiddenCards[:], action.cards[:])
-		}
+		swapCards(&action.player.hand[index], &g.currentHandState.hiddenCards[swapIndex])
 	}
 
 	slices.SortFunc(action.player.hand[:], cardCompare)
@@ -252,13 +236,25 @@ func (action ChooseDiscardCardsAction) apply(g *Game) {
 	g.transitionToState(ChoosingGameTypeGameState)
 }
 
-func getIndexOfSwapIn(currentSwapInIndex int, hiddenCards, discardCards []Card) int {
-	for findCard(hiddenCards[currentSwapInIndex], discardCards) > 0 {
-		currentSwapInIndex++
+func otherIndex(index int) int {
+	return 1 - index
+}
+
+func findDifferentThan(dontMatchCards []Card, inSet []Card) int {
+	in_set_iter:
+	for ind, card := range inSet {
+		for _, dontMatchCard := range dontMatchCards {
+			if card == dontMatchCard {
+				continue in_set_iter
+			}
+		}
+
+		return ind
 	}
 
-	return currentSwapInIndex
+	return -1
 }
+
 
 func swapCards(card1, card2 *Card) {
 	*card1, *card2 = *card2, *card1

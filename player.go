@@ -27,6 +27,7 @@ func newPlayer(name string, client *Client) *Player {
 		score: PlayerScore{
 			soups: make(map[*Player]int),
 		},
+		played: make(map[Card]bool),
 		client: client,
 	}
 	p.next = p
