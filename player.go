@@ -100,3 +100,8 @@ func messageToAction(message []byte, p *Player) Action {
 		return InvalidAction{PlayerInfo: pi}
 	}
 }
+
+
+func (p *Player) sendString(message string) {
+	p.client.send <- []byte(message)
+}

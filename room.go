@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
 )
 
@@ -58,7 +57,6 @@ func (r *Room) run() {
 	pid := 0
 
 	for {
-		fmt.Println("roomn")
 		select {
 		case client := <-r.register:
 			r.clients[client] = true

@@ -134,10 +134,10 @@ func (g *Game) dealCards() {
 
 func (g *Game) run() {
 	for {
-		action := <-g.actions
 		if g.started {
 			g.room.broadcastString("Turn: " + g.getCurrentPlayer().name)
 		}
+		action := <-g.actions
 		g.handleAction(action)
 	}
 }
@@ -156,10 +156,10 @@ func (g *Game) getCurrentPlayer() *Player {
 
 func (g *Game) sendClientsTheirScores() {
 	for p := range g.players {
-		p.client.send <- []byte("Score " + strconv.Itoa(p.score.score))
+		p.sendString("Score " + strconv.Itoa(p.score.score))
 
 		for other, soup := range p.score.soups {
-			p.client.send <- []byte(other.name + ": " + strconv.Itoa(soup))
+			p.sendString(other.name + ": " + strconv.Itoa(soup))
 		}
 	}
 }
@@ -200,6 +200,7 @@ func (g *Game) setupPlayers(startingScore int) {
 		if count == 3 {
 			p.next = first
 			p.score.soups[first] = 0
+			first.score.soups[p] = 0
 		}
 
 		prev = p
