@@ -79,7 +79,7 @@ func (action BidAction) apply(g *Game) {
 	if g.isBiddingWon() {
 		g.transitionToState(ChoosingGameTypeGameState)
 		g.makeNonPassedPlayerCurrent()
-		g.room.broadcast <- []byte(g.currentHandState.bidWinner.name + " is choosing game type")
+		g.room.broadcastString(g.currentHandState.bidWinner.name + " is choosing game type")
 	} else {
 		g.moveToNextActivePlayer()
 	}
@@ -95,12 +95,12 @@ func (action PassBidAction) validate(g *Game) bool {
 
 func (action PassBidAction) apply(g *Game) {
 	g.makePlayerPassed(action.player)
-	g.room.broadcast <- []byte(action.player.name + " passed bidding")
+	g.room.broadcastString(action.player.name + " passed bidding")
 
 	if g.isBiddingWon() {
 		g.transitionToState(ChoosingGameTypeGameState)
 		g.makeNonPassedPlayerCurrent()
-		g.room.broadcast <- []byte(g.currentHandState.bidWinner.name + " is choosing game type")
+		g.room.broadcastString(g.currentHandState.bidWinner.name + " is choosing game type")
 		return
 	}
 
@@ -154,7 +154,7 @@ func (action RespondToGameTypeAction) validate(g *Game) bool {
 
 func (action RespondToGameTypeAction) apply(g *Game) {
 	if action.pass {
-		g.room.broadcast <- []byte(g.currentHandState.currentPlayer.name + "is not coming")
+		g.room.broadcastString(g.currentHandState.currentPlayer.name + "is not coming")
 		g.makePlayerPassed(action.player)
 
 		if len(g.currentHandState.passed) == 2 {
@@ -171,7 +171,7 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 
 	if g.isCurrentPlayer(g.currentHandState.bidWinner) {
 		g.transitionToState(ChoosingCardsGameState)
-		g.room.broadcast <- []byte(g.currentHandState.bidWinner.name + g.currentHandState.currentPlayer.name + " is choosing cards")
+		g.room.broadcastString(g.currentHandState.bidWinner.name + g.currentHandState.currentPlayer.name + " is choosing cards")
 		g.currentHandState.bidWinner.client.send <- []byte("Hidden cards: " +
 			cardToString(g.currentHandState.hiddenCards[0]) + " " +
 			cardToString(g.currentHandState.hiddenCards[1]))
@@ -324,12 +324,12 @@ func (action PlayCardAction) apply(g *Game) {
 
 	if g.isCurrentRoundOver() {
 		p := g.getRoundWinner()
-		g.room.broadcast <- []byte(p.name + " takes the round")
+		g.room.broadcastString(p.name + " takes the round")
 		g.startNextRound()
 
 		g.currentHandState.roundsPlayed++
 		if g.isHandOver() {
-			g.room.broadcast <- []byte("Hand Done")
+			g.room.broadcastString("Hand Done")
 			g.checkSuccess()
 		}
 	} else {

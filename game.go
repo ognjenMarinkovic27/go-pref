@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"slices"
 	"strconv"
@@ -133,18 +132,15 @@ func (g *Game) dealCards() {
 	g.currentHandState.hiddenCards[1] = deck[31]
 }
 
-func (g *Game) run() {
-	for {
-		fmt.Println("GAme")
-		if g.started {
-			g.room.broadcast <- []byte("Turn: " + g.currentHandState.currentPlayer.name)
-		}
-		action := <-g.actions
-		if g.validate(action) {
-			g.apply(action)
-		} else {
-			action.getPlayer().client.send <- []byte("Invalid action")
-		}
+func (g *Game) getCurrentPlayer() *Player {
+	return g.currentHandState.currentPlayer
+}
+
+func (g *Game) handleAction(action Action) {
+	if g.validate(action) {
+		g.apply(action)
+	} else {
+		action.getPlayer().client.send <- []byte("Invalid action")
 	}
 }
 
@@ -168,7 +164,7 @@ func (g *Game) isEveryoneReady() bool {
 }
 
 func (g *Game) startGame(startingScore int) {
-	g.room.broadcast <- []byte("Starting game")
+	g.room.broadcastString("Starting game")
 	g.started = true
 	g.setupPlayers(startingScore)
 	g.startNewHand()
@@ -201,7 +197,7 @@ func (g *Game) setupPlayers(startingScore int) {
 }
 
 func (g *Game) startNewHand() {
-	g.room.broadcast <- []byte("Starting hand")
+	g.room.broadcastString("Starting hand")
 
 	g.gameState = BiddingGameState
 	g.currentHandState = HandState{

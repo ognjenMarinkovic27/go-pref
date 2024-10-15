@@ -34,7 +34,7 @@ func newRoom() *Room {
 	}
 }
 
-func (r *Room) broadcastMessage(message []byte) {
+func (r *Room) broadcastBytes(message []byte) {
 	for client := range r.clients {
 		select {
 		case client.send <- message:
@@ -45,11 +45,14 @@ func (r *Room) broadcastMessage(message []byte) {
 	}
 }
 
+func (r *Room) broadcastString(message string) {
+	r.broadcastBytes([]byte(message))
+}
+
 func (r *Room) run() {
 	actions := make(chan Action)
 
 	r.game = newGame(actions, r)
-	go r.game.run()
 	pid := 0
 
 	for {
@@ -60,12 +63,21 @@ func (r *Room) run() {
 			r.game.addPlayer(p)
 			pid++
 			client.player = p
-			r.broadcastMessage([]byte(p.name + "joined!"))
+			r.broadcastString(p.name + "joined!")
 		case client := <-r.unregister:
 			r.clients[client] = false
 			r.game.removePlayer(client.player)
 		case message := <-r.broadcast:
-			r.broadcastMessage(message)
+			r.broadcastBytes(message)
+		case action := <-actions:
+			r.handleAction(action)
 		}
 	}
+}
+
+func (r *Room) handleAction(action Action) {
+	if r.game.started {
+		r.broadcastString("Turn: " + r.game.getCurrentPlayer().name)
+	}
+	r.game.handleAction(action)
 }
