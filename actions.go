@@ -74,12 +74,12 @@ func (action BidAction) apply(g *Game) {
 		g.currentHandState.bid++
 	}
 
-	g.room.broadcast <- []byte("New bid from " + action.player.name + ": " + strconv.Itoa(int(g.currentHandState.bid)))
+	g.room.broadcastString("New bid from " + action.player.name + ": " + strconv.Itoa(int(g.currentHandState.bid)))
 	g.currentHandState.bidWinner = action.player
 	if g.isBiddingWon() {
-		g.transitionToState(ChoosingGameTypeGameState)
+		g.transitionToState(ChoosingCardsGameState)
 		g.makeNonPassedPlayerCurrent()
-		g.room.broadcastString(g.currentHandState.bidWinner.name + " is choosing game type")
+		g.room.broadcastString(action.player.name + " is choosing cards")
 	} else {
 		g.moveToNextActivePlayer()
 	}
@@ -98,9 +98,12 @@ func (action PassBidAction) apply(g *Game) {
 	g.room.broadcastString(action.player.name + " passed bidding")
 
 	if g.isBiddingWon() {
-		g.transitionToState(ChoosingGameTypeGameState)
+		g.transitionToState(ChoosingCardsGameState)
 		g.makeNonPassedPlayerCurrent()
-		g.room.broadcastString(g.currentHandState.bidWinner.name + " is choosing game type")
+		g.room.broadcastString(g.getCurrentPlayer().name + " is choosing cards")
+		g.getCurrentPlayer().sendString("Hidden cards: " +
+			cardToString(g.currentHandState.hiddenCards[0]) + " " +
+			cardToString(g.currentHandState.hiddenCards[1]))
 		return
 	}
 
@@ -158,23 +161,30 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 		g.makePlayerPassed(action.player)
 
 		if len(g.currentHandState.passed) == 2 {
-			g.room.broadcast <- []byte("Nobody is coming! " + g.currentHandState.bidWinner.name + " succeeds!")
+			g.room.broadcastString("Nobody is coming! " + g.currentHandState.bidWinner.name + " succeeds!")
 			g.currentHandState.bidWinner.score.score -= int(g.currentHandState.gameType) * 2
 			g.startNewHand()
 			return
 		}
 	} else {
-		g.room.broadcast <- []byte(g.currentHandState.currentPlayer.name + "is coming!!!")
+		g.room.broadcastString(g.currentHandState.currentPlayer.name + "is coming!!!")
 	}
 
 	g.moveToNextActivePlayer()
 
 	if g.isCurrentPlayer(g.currentHandState.bidWinner) {
-		g.transitionToState(ChoosingCardsGameState)
-		g.room.broadcastString(g.currentHandState.bidWinner.name + g.currentHandState.currentPlayer.name + " is choosing cards")
-		g.currentHandState.bidWinner.client.send <- []byte("Hidden cards: " +
-			cardToString(g.currentHandState.hiddenCards[0]) + " " +
-			cardToString(g.currentHandState.hiddenCards[1]))
+		if g.currentHandState.bid == SansBid {
+			beforePlayer := g.currentHandState.currentPlayer.next.next
+			if g.currentHandState.passed[beforePlayer] {
+				g.currentHandState.currentPlayer = action.player.next
+			} else {
+				g.currentHandState.currentPlayer = beforePlayer
+			}
+		} else {
+			g.currentHandState.currentPlayer = g.dealerPlayer.next
+		}
+
+		g.transitionToState(PlayingHandGameState)
 	}
 }
 
@@ -236,21 +246,10 @@ func (action ChooseDiscardCardsAction) apply(g *Game) {
 
 	slices.SortFunc(action.player.hand[:], cardCompare)
 
-	action.player.client.send <- []byte("Your new hand:")
+	action.player.sendString("Your new hand:")
 	g.sendHandToClient(action.player)
-
-	if g.currentHandState.bid == SansBid {
-		beforePlayer := g.currentHandState.currentPlayer.next.next
-		if g.currentHandState.passed[beforePlayer] {
-			g.currentHandState.currentPlayer = action.player.next
-		} else {
-			g.currentHandState.currentPlayer = beforePlayer
-		}
-	} else {
-		g.currentHandState.currentPlayer = g.dealerPlayer.next
-	}
-
-	g.transitionToState(PlayingHandGameState)
+	g.room.broadcastString(action.player.name + " is choosing game type")
+	g.transitionToState(ChoosingGameTypeGameState)
 }
 
 func getIndexOfSwapIn(currentSwapInIndex int, hiddenCards, discardCards []Card) int {
@@ -325,6 +324,7 @@ func (action PlayCardAction) apply(g *Game) {
 	if g.isCurrentRoundOver() {
 		p := g.getRoundWinner()
 		g.room.broadcastString(p.name + " takes the round")
+		g.sendClientsTheirHands()
 		g.startNextRound()
 
 		g.currentHandState.roundsPlayed++

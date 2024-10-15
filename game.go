@@ -166,7 +166,7 @@ func (g *Game) sendClientsTheirScores() {
 
 func (g *Game) makeReady(p *Player) {
 	g.ready[p] = true
-	g.room.broadcast <- []byte(p.name + "is ready!")
+	g.room.broadcastString(p.name + "is ready!")
 }
 
 func (g *Game) isEveryoneReady() bool {
@@ -242,6 +242,10 @@ func (g *Game) sendHandToClient(p *Player) {
 	str := ""
 
 	for i, c := range p.hand {
+		if p.played[c] {
+			continue
+		}
+
 		str += cardToString(c)
 		if i != 10 {
 			str += " "
@@ -278,7 +282,7 @@ func (g *Game) chooseGameType(gameType GameType) {
 		g.currentHandState.roundState.suit = trumpSuit
 	}
 
-	g.room.broadcast <- []byte(g.currentHandState.currentPlayer.name + " chose game type: " + strconv.Itoa(int(gameType)))
+	g.room.broadcastString(g.currentHandState.currentPlayer.name + " chose game type: " + strconv.Itoa(int(gameType)))
 }
 
 func (g *Game) resetPassed() {
@@ -295,7 +299,7 @@ func (g *Game) moveToNextActivePlayer() {
 
 func (g *Game) makePlayerPassed(p *Player) {
 	g.currentHandState.passed[p] = true
-	g.room.broadcast <- []byte(p.name + " passed")
+	g.room.broadcastString(p.name + " passed")
 }
 
 func (g *Game) isBiddingWon() bool {
@@ -325,9 +329,10 @@ func (g *Game) nextPlayer(p *Player) *Player {
 
 func (g *Game) playCard(p *Player, card Card) {
 	g.currentHandState.roundState.table[p] = card
+	g.currentHandState.roundState.suit = card.suit
 	g.currentHandState.roundState.empty = false
 
-	g.room.broadcast <- []byte(p.name + " played " + cardToString(card))
+	g.room.broadcastString(p.name + " played " + cardToString(card))
 }
 
 func (g *Game) isCurrentRoundOver() bool {
@@ -375,10 +380,10 @@ func (g *Game) checkSuccess() {
 	owner := g.currentHandState.bidWinner
 	if g.currentHandState.roundsWon[owner] >= 6 {
 		owner.score.score -= int(g.currentHandState.gameType) * 2
-		g.room.broadcast <- []byte(owner.name + " succeded")
+		g.room.broadcastString(owner.name + " succeded")
 	} else {
 		owner.score.score += int(g.currentHandState.gameType) * 2
-		g.room.broadcast <- []byte(owner.name + " failed")
+		g.room.broadcastString(owner.name + " failed")
 	}
 
 	for p := range g.players {
@@ -387,10 +392,10 @@ func (g *Game) checkSuccess() {
 		}
 
 		if g.currentHandState.roundsWon[p] >= 2 || 10-g.currentHandState.roundsWon[owner] <= 6 {
-			g.room.broadcast <- []byte(p.name + " succeded")
+			g.room.broadcastString(p.name + " succeded")
 		} else {
 			owner.score.score += int(g.currentHandState.gameType) * 2
-			g.room.broadcast <- []byte(p.name + " failed :(")
+			g.room.broadcastString(p.name + " failed :(")
 		}
 
 		p.score.soups[owner] += g.currentHandState.roundsWon[p] * int(g.currentHandState.gameType) * 2
