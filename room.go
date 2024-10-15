@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 )
 
@@ -53,9 +54,11 @@ func (r *Room) run() {
 	actions := make(chan Action)
 
 	r.game = newGame(actions, r)
+	go r.game.run()
 	pid := 0
 
 	for {
+		fmt.Println("roomn")
 		select {
 		case client := <-r.register:
 			r.clients[client] = true
@@ -69,15 +72,6 @@ func (r *Room) run() {
 			r.game.removePlayer(client.player)
 		case message := <-r.broadcast:
 			r.broadcastBytes(message)
-		case action := <-actions:
-			r.handleAction(action)
 		}
 	}
-}
-
-func (r *Room) handleAction(action Action) {
-	if r.game.started {
-		r.broadcastString("Turn: " + r.game.getCurrentPlayer().name)
-	}
-	r.game.handleAction(action)
 }

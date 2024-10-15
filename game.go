@@ -132,8 +132,14 @@ func (g *Game) dealCards() {
 	g.currentHandState.hiddenCards[1] = deck[31]
 }
 
-func (g *Game) getCurrentPlayer() *Player {
-	return g.currentHandState.currentPlayer
+func (g *Game) run() {
+	for {
+		action := <-g.actions
+		if g.started {
+			g.room.broadcastString("Turn: " + g.getCurrentPlayer().name)
+		}
+		g.handleAction(action)
+	}
 }
 
 func (g *Game) handleAction(action Action) {
@@ -142,6 +148,10 @@ func (g *Game) handleAction(action Action) {
 	} else {
 		action.getPlayer().client.send <- []byte("Invalid action")
 	}
+}
+
+func (g *Game) getCurrentPlayer() *Player {
+	return g.currentHandState.currentPlayer
 }
 
 func (g *Game) sendClientsTheirScores() {
