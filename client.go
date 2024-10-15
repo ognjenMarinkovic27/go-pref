@@ -40,6 +40,8 @@ var upgrader = websocket.Upgrader{
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
+	name   string
+	
 	room *Room
 
 	// The websocket connection.
@@ -64,6 +66,18 @@ func (c *Client) readPump() {
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	
+	_, name, err := c.conn.ReadMessage()
+	if err != nil {
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			log.Printf("error: %v", err)
+		}
+	} else {
+		c.room.recv <- name
+		c.room.sender = c
+	}
+
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -74,8 +88,7 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		fmt.Println("Message from client:", string(message))
-		action := messageToAction(message, c.player)
-		c.room.game.actions <- action
+		c.room.recv <- message
 	}
 }
 
@@ -132,7 +145,12 @@ func serveWs(room *Room, w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	client := &Client{room: room, conn: conn, send: make(chan []byte, 256)}
+
+	name := r.URL.Query().Get("name")
+
+	fmt.Println(name)
+
+	client := &Client{name: name, room: room, conn: conn, send: make(chan []byte, 256)}
 	client.room.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in

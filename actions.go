@@ -74,7 +74,7 @@ func (action BidAction) apply(g *Game) {
 		g.currentHandState.bid++
 	}
 
-	g.room.broadcastString("New bid from " + action.player.name + ": " + strconv.Itoa(int(g.currentHandState.bid)))
+	g.room.broadcastString("New bid from " + action.player.getName() + ": " + strconv.Itoa(int(g.currentHandState.bid)))
 	g.currentHandState.bidWinner = action.player
 	if g.isBiddingWon() {
 		g.endBidding()
@@ -93,7 +93,7 @@ func (action PassBidAction) validate(g *Game) bool {
 
 func (action PassBidAction) apply(g *Game) {
 	g.makePlayerPassed(action.player)
-	g.room.broadcastString(action.player.name + " passed bidding")
+	g.room.broadcastString(action.player.getName() + " passed bidding")
 
 	if g.isBiddingWon() {
 		g.endBidding()
@@ -150,17 +150,17 @@ func (action RespondToGameTypeAction) validate(g *Game) bool {
 
 func (action RespondToGameTypeAction) apply(g *Game) {
 	if action.pass {
-		g.room.broadcastString(g.currentHandState.currentPlayer.name + "is not coming")
+		g.room.broadcastString(g.currentHandState.currentPlayer.getName() + "is not coming")
 		g.makePlayerPassed(action.player)
 
 		if len(g.currentHandState.passed) == 2 {
-			g.room.broadcastString("Nobody is coming! " + g.currentHandState.bidWinner.name + " succeeds!")
+			g.room.broadcastString("Nobody is coming! " + g.currentHandState.bidWinner.getName() + " succeeds!")
 			g.currentHandState.bidWinner.score.score -= int(g.currentHandState.gameType) * 2
 			g.startNewHand()
 			return
 		}
 	} else {
-		g.room.broadcastString(g.currentHandState.currentPlayer.name + " is coming!!!")
+		g.room.broadcastString(g.currentHandState.currentPlayer.getName() + " is coming!!!")
 	}
 
 	g.moveToNextActivePlayer()
@@ -232,7 +232,7 @@ func (action ChooseDiscardCardsAction) apply(g *Game) {
 
 	action.player.sendString("Your new hand:")
 	g.sendHandToClient(action.player)
-	g.room.broadcastString(action.player.name + " is choosing game type")
+	g.room.broadcastString(action.player.getName() + " is choosing game type")
 	g.transitionToState(ChoosingGameTypeGameState)
 }
 
@@ -319,7 +319,7 @@ func (action PlayCardAction) apply(g *Game) {
 
 	if g.isCurrentRoundOver() {
 		p := g.getRoundWinner()
-		g.room.broadcastString(p.name + " takes the round")
+		g.room.broadcastString(p.getName() + " takes the round")
 		g.sendClientsTheirHands()
 		g.startNextRound()
 

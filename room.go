@@ -1,9 +1,5 @@
 package main
 
-import (
-	"strconv"
-)
-
 type RoomState int
 
 const (
@@ -22,6 +18,9 @@ type Room struct {
 	clients map[*Client]bool
 
 	broadcast chan []byte
+
+	recv chan []byte
+	sender *Client
 }
 
 func newRoom() *Room {
@@ -54,22 +53,23 @@ func (r *Room) run() {
 
 	r.game = newGame(actions, r)
 	go r.game.run()
-	pid := 0
 
 	for {
 		select {
 		case client := <-r.register:
 			r.clients[client] = true
-			p := newPlayer("ogi"+strconv.FormatInt(int64(pid), 10), client)
+			p := newPlayer(client)
 			r.game.addPlayer(p)
-			pid++
 			client.player = p
-			r.broadcastString(p.name + "joined!")
+			r.broadcastString(p.getName() + "joined!")
 		case client := <-r.unregister:
 			r.clients[client] = false
 			r.game.removePlayer(client.player)
 		case message := <-r.broadcast:
 			r.broadcastBytes(message)
+		case message := <-r.recv:
+			action := messageToAction(message, r.sender.player)
+			r.game.actions <- action
 		}
 	}
 }

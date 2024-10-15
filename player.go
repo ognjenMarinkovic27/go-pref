@@ -12,7 +12,6 @@ type PlayerScore struct {
 }
 
 type Player struct {
-	name   string
 	hand   [10]Card
 	played map[Card]bool
 	score  PlayerScore
@@ -21,9 +20,8 @@ type Player struct {
 	next   *Player
 }
 
-func newPlayer(name string, client *Client) *Player {
+func newPlayer(client *Client) *Player {
 	p := &Player{
-		name: name,
 		score: PlayerScore{
 			soups: make(map[*Player]int),
 		},
@@ -97,7 +95,7 @@ func messageToAction(message []byte, p *Player) Action {
 			PlayerInfo: pi,
 		}
 	default:
-		fmt.Println("Invalid action from", p.name)
+		fmt.Println("Invalid action from", p.getName())
 		return InvalidAction{PlayerInfo: pi}
 	}
 }
@@ -105,4 +103,8 @@ func messageToAction(message []byte, p *Player) Action {
 
 func (p *Player) sendString(message string) {
 	p.client.send <- []byte(message)
+}
+
+func (p *Player) getName() string {
+	return p.client.name
 }
