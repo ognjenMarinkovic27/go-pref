@@ -8,6 +8,11 @@ const (
 	FinishedRoomState           = 2
 )
 
+type Message struct {
+	value  []byte
+	client *Client
+}
+
 type Room struct {
 	roomState RoomState
 	game      *Game
@@ -19,8 +24,7 @@ type Room struct {
 
 	broadcast chan []byte
 
-	recv   chan []byte
-	sender *Client
+	recv chan Message
 }
 
 func newRoom() *Room {
@@ -30,7 +34,7 @@ func newRoom() *Room {
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 		broadcast:  make(chan []byte),
-		recv:       make(chan []byte),
+		recv:       make(chan Message),
 	}
 }
 
@@ -67,7 +71,7 @@ func (r *Room) run() {
 		case message := <-r.broadcast:
 			r.broadcastBytes(message)
 		case message := <-r.recv:
-			action := messageToAction(message, r.sender.player)
+			action := messageToAction(message.value, message.client.player)
 			r.game.actions <- action
 		}
 	}
