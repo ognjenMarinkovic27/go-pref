@@ -62,7 +62,7 @@ func (r *Room) run() {
 			p := newPlayer(client)
 			r.game.addPlayer(p)
 			client.player = p
-			r.broadcastString(p.getName() + "joined!")
+			r.broadcastString(p.getName() + " joined!")
 		case client := <-r.unregister:
 			r.clients[client] = false
 			r.game.removePlayer(client.player)
