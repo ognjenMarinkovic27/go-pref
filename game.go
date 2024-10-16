@@ -70,11 +70,11 @@ type RoundState struct {
 	table map[*Player]Card
 }
 
-func newGame(actions chan Action, room *Room) *Game {
+func newGame(room *Room) *Game {
 	return &Game{
 		gameState: WaitingGameState,
 		players:   make(map[*Player]bool),
-		actions:   actions,
+		actions:   make(chan Action),
 		ready:     make(map[*Player]bool),
 		started:   false,
 		room:      room,

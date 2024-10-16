@@ -50,9 +50,7 @@ func (r *Room) broadcastString(message string) {
 }
 
 func (r *Room) run() {
-	actions := make(chan Action)
-
-	r.game = newGame(actions, r)
+	r.game = newGame(r)
 	go r.game.run()
 
 	for {
