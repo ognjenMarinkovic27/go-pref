@@ -87,9 +87,7 @@ func (g *Game) addPlayer(p *Player) bool {
 }
 
 func (g *Game) removePlayer(p *Player) {
-	if _, ok := g.players[p]; ok {
-		delete(g.players, p)
-	}
+	delete(g.players, p)
 }
 
 func (g *Game) validate(a Action) bool {
