@@ -43,7 +43,6 @@ type Game struct {
 	dealerPlayer     *Player
 	currentHandState HandState
 	players          map[*Player]bool
-	actions          chan Action
 
 	ready   map[*Player]bool
 	started bool
@@ -74,7 +73,6 @@ func newGame(room *Room) *Game {
 	return &Game{
 		gameState: WaitingGameState,
 		players:   make(map[*Player]bool),
-		actions:   make(chan Action),
 		ready:     make(map[*Player]bool),
 		started:   false,
 		room:      room,
@@ -128,16 +126,6 @@ func (g *Game) dealCards() {
 
 	g.currentHandState.hiddenCards[0] = deck[30]
 	g.currentHandState.hiddenCards[1] = deck[31]
-}
-
-func (g *Game) run() {
-	for {
-		if g.started {
-			g.room.broadcastString("Turn: " + g.getCurrentPlayer().getName())
-		}
-		action := <-g.actions
-		g.handleAction(action)
-	}
 }
 
 func (g *Game) handleAction(action Action) {

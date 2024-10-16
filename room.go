@@ -55,7 +55,6 @@ func (r *Room) broadcastString(message string) {
 
 func (r *Room) run() {
 	r.game = newGame(r)
-	go r.game.run()
 
 	for {
 		select {
@@ -72,7 +71,7 @@ func (r *Room) run() {
 			r.broadcastBytes(message)
 		case message := <-r.recv:
 			action := messageToAction(message.value, message.client.player)
-			r.game.actions <- action
+			r.game.handleAction(action)
 		}
 	}
 }
