@@ -241,7 +241,7 @@ func otherIndex(index int) int {
 }
 
 func findDifferentThan(dontMatchCards []Card, inSet []Card) int {
-	in_set_iter:
+in_set_iter:
 	for ind, card := range inSet {
 		for _, dontMatchCard := range dontMatchCards {
 			if card == dontMatchCard {
@@ -254,7 +254,6 @@ func findDifferentThan(dontMatchCards []Card, inSet []Card) int {
 
 	return -1
 }
-
 
 func swapCards(card1, card2 *Card) {
 	*card1, *card2 = *card2, *card1
@@ -321,12 +320,12 @@ func (action PlayCardAction) apply(g *Game) {
 		p := g.getRoundWinner()
 		g.room.broadcastString(p.getName() + " takes the round")
 		g.sendClientsTheirHands()
-		g.startNextRound()
 
 		g.currentHandState.roundsPlayed++
 		if g.isHandOver() {
 			g.room.broadcastString("Hand Done")
 			g.checkSuccess()
+			g.startNewHand()
 		}
 	} else {
 		g.moveToNextActivePlayer()

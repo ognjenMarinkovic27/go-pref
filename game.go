@@ -345,11 +345,11 @@ func (g *Game) nextPlayer(p *Player) *Player {
 
 func (g *Game) playCard(p *Player, card Card) {
 	g.currentHandState.roundState.table[p] = card
-	if (g.currentHandState.roundState.empty) {
+	if g.currentHandState.roundState.empty {
 		g.currentHandState.roundState.suit = card.suit
 	}
 	g.currentHandState.roundState.empty = false
-	
+
 	p.played[card] = true
 
 	g.room.broadcastString(p.getName() + " played " + cardToString(card))
