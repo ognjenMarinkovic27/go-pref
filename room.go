@@ -19,7 +19,7 @@ type Room struct {
 
 	broadcast chan []byte
 
-	recv chan []byte
+	recv   chan []byte
 	sender *Client
 }
 
@@ -30,6 +30,7 @@ func newRoom() *Room {
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 		broadcast:  make(chan []byte),
+		recv:       make(chan []byte),
 	}
 }
 
