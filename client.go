@@ -78,7 +78,6 @@ func (c *Client) readPump() {
 		messageValue = bytes.TrimSpace(bytes.Replace(messageValue, newline, space, -1))
 		fmt.Println("Message from client:", string(messageValue))
 
-		// TODO: Not thread safe
 		c.room.recv <- Message{
 			value:  messageValue,
 			client: c,
