@@ -46,7 +46,7 @@ func readMessageType(bytes []byte) (string, error) {
 
 	mtype, ok := obj["type"].(string)
 	if !ok {
-		return "", errors.New("Received message has no type attribute.")
+		return "", errors.New("received message has no type attribute")
 	}
 
 	return mtype, nil
