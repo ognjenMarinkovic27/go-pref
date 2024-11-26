@@ -9,7 +9,11 @@ func NewInvalidAction(player *Player) InvalidAction {
 }
 
 func (action InvalidAction) validate(g *Game) bool {
-	return false
+	// We will allow the InvalidAction to pass so we
+	// can add an InvalidActionResponse in apply
+	return true
 }
 
-func (action InvalidAction) apply(g *Game) {}
+func (action InvalidAction) apply(g *Game) {
+	g.addResponse(&InvalidActionResponse{action.player})
+}

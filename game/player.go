@@ -1,7 +1,7 @@
 package game
 
 type PlayerScore struct {
-	score int
+	main  int
 	soups map[*Player]int
 }
 

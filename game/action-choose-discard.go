@@ -55,9 +55,6 @@ func (action ChooseDiscardCardsAction) apply(g *Game) {
 
 	slices.SortFunc(action.player.hand[:], cardCompare)
 
-	// action.player.sendString("Your new hand:")
-	// g.sendHandToClient(action.player)
-	// g.room.broadcastString(action.player.getName() + " is choosing game type")
 	g.transitionToState(ChoosingGameTypeGameState)
 }
 

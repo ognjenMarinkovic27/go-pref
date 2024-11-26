@@ -14,7 +14,6 @@ func (action PassBidAction) validate(g *Game) bool {
 
 func (action PassBidAction) apply(g *Game) {
 	g.makePlayerPassed(action.player)
-	// g.room.broadcastString(action.player.getName() + " passed bidding")
 
 	if g.isBiddingWon() {
 		g.endBidding()

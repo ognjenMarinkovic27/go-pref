@@ -28,7 +28,7 @@ func (action BidAction) apply(g *Game) {
 		g.currentHandState.bid++
 	}
 
-	// g.room.broadcastString("New bid from " + action.player.getName() + ": " + strconv.Itoa(int(g.currentHandState.bid)))
+	g.reportBid(action.player)
 	g.currentHandState.bidWinner = action.player
 	if g.isBiddingWon() {
 		g.endBidding()

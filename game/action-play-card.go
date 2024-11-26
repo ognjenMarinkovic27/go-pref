@@ -52,15 +52,15 @@ func (action PlayCardAction) apply(g *Game) {
 	g.playCard(action.player, action.card)
 
 	if g.isCurrentRoundOver() {
-		// p := g.getRoundWinner()
-		// g.room.broadcastString(p.getName() + " takes the round")
-		// g.sendClientsTheirHands()
+		g.reportRoundOver()
 
 		g.currentHandState.roundsPlayed++
 		if g.isHandOver() {
-			// g.room.broadcastString("Hand Done")
-			g.checkSuccess()
+			g.reportSuccess()
+			g.sendScoresToPlayers()
 			g.startNewHand()
+		} else {
+			g.startNextRound()
 		}
 	} else {
 		g.moveToNextActivePlayer()

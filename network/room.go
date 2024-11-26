@@ -56,8 +56,8 @@ func (r *Room) handleAction(action game.Action) {
 	g := r.game
 	if g.Validate(action) {
 		g.Apply(action)
-	} else {
-		// message.client.send <- outbound.InvalidActionMessage{}
+
+		_ = g.Collect()
 	}
 }
 

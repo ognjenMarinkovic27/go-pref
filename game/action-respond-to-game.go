@@ -20,17 +20,17 @@ func (action RespondToGameTypeAction) validate(g *Game) bool {
 
 func (action RespondToGameTypeAction) apply(g *Game) {
 	if action.pass {
-		// g.room.broadcastString(g.currentHandState.currentPlayer.getName() + "is not coming")
+		g.recordPlayerComingState(action.player, NotComing)
 		g.makePlayerPassed(action.player)
 
 		if len(g.currentHandState.passed) == 2 {
-			// g.room.broadcastString("Nobody is coming! " + g.currentHandState.bidWinner.getName() + " succeeds!")
-			g.currentHandState.bidWinner.score.score -= int(g.currentHandState.gameType) * 2
+			g.currentHandState.bidWinner.score.main -= int(g.currentHandState.gameType) * 2
+			g.reportSuccessToOwner()
 			g.startNewHand()
 			return
 		}
 	} else {
-		// g.room.broadcastString(g.currentHandState.currentPlayer.getName() + " is coming!!!")
+		g.recordPlayerComingState(action.player, Coming)
 	}
 
 	g.moveToNextActivePlayer()
