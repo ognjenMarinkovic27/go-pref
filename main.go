@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"ognjen/go-pref/network"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -23,11 +24,11 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	room := newRoom()
-	go room.run()
+	room := network.NewRoom()
+	go room.Run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(room, w, r)
+		network.ServeWs(room, w, r)
 	})
 	err := http.ListenAndServe(*addr, nil)
 	if err != nil {

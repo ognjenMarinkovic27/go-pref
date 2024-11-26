@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package network
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
+
+	"ognjen/go-pref/game"
 
 	"github.com/gorilla/websocket"
 )
@@ -36,6 +37,10 @@ var (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	// TODO: do this properly
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 // Client is a middleman between the websocket connection and the hub.
@@ -50,7 +55,7 @@ type Client struct {
 	// Buffered channel of outbound messages.
 	send chan []byte
 
-	player *Player
+	player *game.Player
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -75,12 +80,13 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		messageValue = bytes.TrimSpace(bytes.Replace(messageValue, newline, space, -1))
 		fmt.Println("Message from client:", string(messageValue))
 
-		c.room.recv <- Message{
-			value:  messageValue,
-			client: c,
+		message, err := dataToMessage(messageValue)
+		if err != nil {
+			fmt.Println("Error unmarshaling JSON message:", err)
+		} else {
+			c.room.recv <- message
 		}
 	}
 }
@@ -99,6 +105,7 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
+			fmt.Println("sending", string(message), "to client")
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
@@ -132,7 +139,7 @@ func (c *Client) writePump() {
 }
 
 // serveWs handles websocket requests from the peer.
-func serveWs(room *Room, w http.ResponseWriter, r *http.Request) {
+func ServeWs(room *Room, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)

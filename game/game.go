@@ -1,9 +1,8 @@
-package main
+package game
 
 import (
 	"math/rand/v2"
 	"slices"
-	"strconv"
 )
 
 type GameState int
@@ -46,8 +45,6 @@ type Game struct {
 
 	ready   map[*Player]bool
 	started bool
-
-	room *Room
 }
 
 type HandState struct {
@@ -69,26 +66,25 @@ type RoundState struct {
 	table map[*Player]Card
 }
 
-func newGame(room *Room) *Game {
+func NewGame() *Game {
 	return &Game{
 		gameState: WaitingGameState,
 		players:   make(map[*Player]bool),
 		ready:     make(map[*Player]bool),
 		started:   false,
-		room:      room,
 	}
 }
 
-func (g *Game) addPlayer(p *Player) bool {
+func (g *Game) AddPlayer(p *Player) bool {
 	g.players[p] = true
 	return true
 }
 
-func (g *Game) removePlayer(p *Player) {
+func (g *Game) RemovePlayer(p *Player) {
 	delete(g.players, p)
 }
 
-func (g *Game) validate(a Action) bool {
+func (g *Game) Validate(a Action) bool {
 	if a == nil {
 		return false
 	}
@@ -96,7 +92,7 @@ func (g *Game) validate(a Action) bool {
 	return a.validate(g)
 }
 
-func (g *Game) apply(a Action) {
+func (g *Game) Apply(a Action) {
 	a.apply(g)
 }
 
@@ -106,7 +102,7 @@ func (g *Game) dealCards() {
 	c := 0
 	for i := Seven; i <= Ace; i++ {
 		for j := Spades; j <= Hearts; j++ {
-			deck[c] = Card{suit: j, value: i}
+			deck[c] = Card{Suit: j, Value: i}
 			c++
 		}
 	}
@@ -128,31 +124,23 @@ func (g *Game) dealCards() {
 	g.currentHandState.hiddenCards[1] = deck[31]
 }
 
-func (g *Game) handleAction(action Action) {
-	if g.validate(action) {
-		g.apply(action)
-	} else {
-		action.getPlayer().client.send <- []byte("Invalid action")
-	}
-}
-
 func (g *Game) getCurrentPlayer() *Player {
 	return g.currentHandState.currentPlayer
 }
 
-func (g *Game) sendClientsTheirScores() {
-	for p := range g.players {
-		p.sendString("Score " + strconv.Itoa(p.score.score))
+// func (g *Game) sendClientsTheirScores() {
+// 	for p := range g.players {
+// 		p.sendString("Score " + strconv.Itoa(p.score.score))
 
-		for other, soup := range p.score.soups {
-			p.sendString(other.getName() + ": " + strconv.Itoa(soup))
-		}
-	}
-}
+// 		for other, soup := range p.score.soups {
+// 			p.sendString(other.getName() + ": " + strconv.Itoa(soup))
+// 		}
+// 	}
+// }
 
 func (g *Game) makeReady(p *Player) {
 	g.ready[p] = true
-	g.room.broadcastString(p.getName() + "is ready!")
+	// g.room.broadcastString(p.getName() + "is ready!")
 }
 
 func (g *Game) isEveryoneReady() bool {
@@ -160,7 +148,7 @@ func (g *Game) isEveryoneReady() bool {
 }
 
 func (g *Game) startGame(startingScore int) {
-	g.room.broadcastString("Starting game")
+	// g.room.broadcastString("Starting game")
 	g.started = true
 	g.setupPlayers(startingScore)
 	g.startNewHand()
@@ -194,7 +182,7 @@ func (g *Game) setupPlayers(startingScore int) {
 }
 
 func (g *Game) startNewHand() {
-	g.room.broadcastString("Starting hand")
+	// g.room.broadcastString("Starting hand")
 
 	g.gameState = BiddingGameState
 	g.currentHandState = HandState{
@@ -215,32 +203,32 @@ func (g *Game) startNewHand() {
 
 	g.clearPlayedMaps()
 	g.dealCards()
-	g.sendClientsTheirHands()
-	g.sendClientsTheirScores()
+	// g.sendClientsTheirHands()
+	// g.sendClientsTheirScores()
 }
 
-func (g *Game) sendClientsTheirHands() {
-	for p := range g.players {
-		g.sendHandToClient(p)
-	}
-}
+// func (g *Game) sendClientsTheirHands() {
+// 	for p := range g.players {
+// 		g.sendHandToClient(p)
+// 	}
+// }
 
-func (g *Game) sendHandToClient(p *Player) {
-	str := ""
+// func (g *Game) sendHandToClient(p *Player) {
+// 	str := ""
 
-	for i, c := range p.hand {
-		if p.played[c] {
-			continue
-		}
+// 	for i, c := range p.hand {
+// 		if p.played[c] {
+// 			continue
+// 		}
 
-		str += cardToString(c)
-		if i != 10 {
-			str += " "
-		}
-	}
+// 		str += cardToString(c)
+// 		if i != 10 {
+// 			str += " "
+// 		}
+// 	}
 
-	p.client.send <- []byte(str)
-}
+// 	p.client.send <- []byte(str)
+// }
 
 func (g *Game) clearPlayedMaps() {
 	for p := range g.players {
@@ -259,10 +247,10 @@ func (g *Game) isBiddingMaxed() bool {
 func (g *Game) endBidding() {
 	g.transitionToState(ChoosingCardsGameState)
 	g.makeNonPassedPlayerCurrent()
-	g.room.broadcastString(g.getCurrentPlayer().getName() + " is choosing cards")
-	g.getCurrentPlayer().sendString("Hidden cards: " +
-		cardToString(g.currentHandState.hiddenCards[0]) + " " +
-		cardToString(g.currentHandState.hiddenCards[1]))
+	// g.room.broadcastString(g.getCurrentPlayer().getName() + " is choosing cards")
+	// g.getCurrentPlayer().sendString("Hidden cards: " +
+	// 	cardToString(g.currentHandState.hiddenCards[0]) + " " +
+	// 	cardToString(g.currentHandState.hiddenCards[1]))
 }
 
 func (g *Game) hasPassed(p *Player) bool {
@@ -284,7 +272,7 @@ func (g *Game) chooseGameType(gameType GameType) {
 		g.currentHandState.roundState.suit = trumpSuit
 	}
 
-	g.room.broadcastString(g.currentHandState.currentPlayer.getName() + " chose game type: " + strconv.Itoa(int(gameType)))
+	// g.room.broadcastString(g.currentHandState.currentPlayer.getName() + " chose game type: " + strconv.Itoa(int(gameType)))
 }
 
 func (g *Game) resetPassed() {
@@ -301,7 +289,7 @@ func (g *Game) moveToNextActivePlayer() {
 
 func (g *Game) makePlayerPassed(p *Player) {
 	g.currentHandState.passed[p] = true
-	g.room.broadcastString(p.getName() + " passed")
+	// g.room.broadcastString(p.getName() + " passed")
 }
 
 func (g *Game) isBiddingWon() bool {
@@ -332,13 +320,13 @@ func (g *Game) nextPlayer(p *Player) *Player {
 func (g *Game) playCard(p *Player, card Card) {
 	g.currentHandState.roundState.table[p] = card
 	if g.currentHandState.roundState.empty {
-		g.currentHandState.roundState.suit = card.suit
+		g.currentHandState.roundState.suit = card.Suit
 	}
 	g.currentHandState.roundState.empty = false
 
 	p.played[card] = true
 
-	g.room.broadcastString(p.getName() + " played " + cardToString(card))
+	// g.room.broadcastString(p.getName() + " played " + cardToString(card))
 }
 
 func (g *Game) isCurrentRoundOver() bool {
@@ -359,8 +347,8 @@ func (g *Game) getRoundWinner() *Player {
 			bestCard = c
 		} else {
 			trump, _ := g.getTrumpSuit()
-			if (c.suit == trump && (bestCard.suit != trump || bestCard.value < c.value)) ||
-				c.suit != trump && bestCard.value < c.value {
+			if (c.Suit == trump && (bestCard.Suit != trump || bestCard.Value < c.Value)) ||
+				c.Suit != trump && bestCard.Value < c.Value {
 				roundWinner = p
 				bestCard = c
 			}
@@ -386,10 +374,10 @@ func (g *Game) checkSuccess() {
 	owner := g.currentHandState.bidWinner
 	if g.currentHandState.roundsWon[owner] >= 6 {
 		owner.score.score -= int(g.currentHandState.gameType) * 2
-		g.room.broadcastString(owner.getName() + " succeded")
+		// g.room.broadcastString(owner.getName() + " succeded")
 	} else {
 		owner.score.score += int(g.currentHandState.gameType) * 2
-		g.room.broadcastString(owner.getName() + " failed")
+		// g.room.broadcastString(owner.getName() + " failed")
 	}
 
 	for p := range g.players {
@@ -398,10 +386,10 @@ func (g *Game) checkSuccess() {
 		}
 
 		if g.currentHandState.roundsWon[p] >= 2 || 10-g.currentHandState.roundsWon[owner] <= 6 {
-			g.room.broadcastString(p.getName() + " succeded")
+			// g.room.broadcastString(p.getName() + " succeded")
 		} else {
 			owner.score.score += int(g.currentHandState.gameType) * 2
-			g.room.broadcastString(p.getName() + " failed :(")
+			// g.room.broadcastString(p.getName() + " failed :(")
 		}
 
 		p.score.soups[owner] += g.currentHandState.roundsWon[p] * int(g.currentHandState.gameType) * 2

@@ -1,4 +1,4 @@
-module ognjen/go-cards
+module ognjen/go-pref
 
 go 1.23.0
 

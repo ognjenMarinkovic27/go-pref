@@ -1,4 +1,8 @@
-package main
+package network
+
+import (
+	"ognjen/go-pref/game"
+)
 
 type RoomState int
 
@@ -8,14 +12,9 @@ const (
 	FinishedRoomState           = 2
 )
 
-type Message struct {
-	value  []byte
-	client *Client
-}
-
 type Room struct {
 	roomState RoomState
-	game      *Game
+	game      *game.Game
 
 	register   chan *Client
 	unregister chan *Client
@@ -24,17 +23,17 @@ type Room struct {
 
 	broadcast chan []byte
 
-	recv chan Message
+	recv chan InboundMessage
 }
 
-func newRoom() *Room {
+func NewRoom() *Room {
 	return &Room{
 		roomState:  WaitingRoomState,
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 		broadcast:  make(chan []byte),
-		recv:       make(chan Message),
+		recv:       make(chan InboundMessage),
 	}
 }
 
@@ -53,25 +52,34 @@ func (r *Room) broadcastString(message string) {
 	r.broadcastBytes([]byte(message))
 }
 
-func (r *Room) run() {
-	r.game = newGame(r)
+func (r *Room) handleAction(action game.Action) {
+	g := r.game
+	if g.Validate(action) {
+		g.Apply(action)
+	} else {
+		// message.client.send <- outbound.InvalidActionMessage{}
+	}
+}
+
+func (r *Room) Run() {
+	r.game = game.NewGame()
 
 	for {
 		select {
 		case client := <-r.register:
 			r.clients[client] = true
-			p := newPlayer(client)
-			r.game.addPlayer(p)
+			p := game.NewPlayer()
+			r.game.AddPlayer(p)
 			client.player = p
-			r.broadcastString(p.getName() + " joined!")
+			// r.broadcastString(client.name + " joined!")
 		case client := <-r.unregister:
 			r.clients[client] = false
-			r.game.removePlayer(client.player)
+			r.game.RemovePlayer(client.player)
 		case message := <-r.broadcast:
 			r.broadcastBytes(message)
 		case message := <-r.recv:
-			action := messageToAction(message.value, message.client.player)
-			r.game.handleAction(action)
+			action := message.Action()
+			r.handleAction(action)
 		}
 	}
 }
