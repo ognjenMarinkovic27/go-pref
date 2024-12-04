@@ -1,18 +1,15 @@
 package game
 
 type ChooseGameTypeAction struct {
-	gameType GameType
-	player   *Player
-}
-
-func NewChooseGameTypeAction(gameType GameType, player *Player) ChooseGameTypeAction {
-	return ChooseGameTypeAction{gameType, player}
+	GameType   GameType `json:"game-type"`
+	ActionBase `json:"-"`
 }
 
 func (action ChooseGameTypeAction) validate(g *Game) bool {
-	if !g.isCurrentPlayer(action.player) ||
+	player := g.players[action.ppid]
+	if !g.isCurrentPlayer(player) ||
 		g.gameState != ChoosingGameTypeGameState ||
-		action.gameType < GameType(g.currentHandState.bid) {
+		action.GameType < GameType(g.currentHandState.bid) {
 		return false
 	}
 
@@ -20,7 +17,7 @@ func (action ChooseGameTypeAction) validate(g *Game) bool {
 }
 
 func (action ChooseGameTypeAction) apply(g *Game) {
-	g.chooseGameType(action.gameType)
+	g.chooseGameType(action.GameType)
 	g.gameState = RespondingToGameTypeGameState
 	g.resetPassed()
 	g.moveToNextActivePlayer()

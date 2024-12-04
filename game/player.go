@@ -6,6 +6,8 @@ type PlayerScore struct {
 }
 
 type Player struct {
+	pid string
+
 	hand   [10]Card
 	played map[Card]bool
 	score  PlayerScore
@@ -13,8 +15,9 @@ type Player struct {
 	next *Player
 }
 
-func NewPlayer() *Player {
+func newPlayer(pid string) *Player {
 	p := &Player{
+		pid: pid,
 		score: PlayerScore{
 			soups: make(map[*Player]int),
 		},

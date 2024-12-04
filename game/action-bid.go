@@ -1,18 +1,15 @@
 package game
 
 type BidAction struct {
-	player *Player
-}
-
-func NewBidAction(player *Player) BidAction {
-	return BidAction{player}
+	ActionBase `json:"-"`
 }
 
 func (action BidAction) validate(g *Game) bool {
+	player := g.players[action.ppid]
 	if g.gameState == BiddingGameState &&
-		g.isCurrentPlayer(action.player) &&
+		g.isCurrentPlayer(player) &&
 		!g.isBiddingMaxed() &&
-		!g.hasPassed(action.player) {
+		!g.hasPassed(player) {
 		return true
 	}
 
@@ -20,16 +17,17 @@ func (action BidAction) validate(g *Game) bool {
 }
 
 func (action BidAction) apply(g *Game) {
+	player := g.players[action.ppid]
 	if g.isFirstBid() {
-		g.currentHandState.firstPlayer = action.player
+		g.currentHandState.firstPlayer = player
 	}
 
-	if !g.isPlayerFirstToBid(action.player) {
+	if !g.isPlayerFirstToBid(player) {
 		g.currentHandState.bid++
 	}
 
-	g.reportBid(action.player)
-	g.currentHandState.bidWinner = action.player
+	g.reportBid(player)
+	g.currentHandState.bidWinner = player
 	if g.isBiddingWon() {
 		g.endBidding()
 	} else {

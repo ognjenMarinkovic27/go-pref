@@ -1,38 +1,35 @@
 package game
 
 type PlayCardAction struct {
-	card   Card
-	player *Player
-}
-
-func NewPlayCardAction(card Card, player *Player) PlayCardAction {
-	return PlayCardAction{card, player}
+	Card       Card `json:"card"`
+	ActionBase `json:"-"`
 }
 
 func (action PlayCardAction) validate(g *Game) bool {
-	if !g.isCurrentPlayer(action.player) ||
+	player := g.players[action.ppid]
+	if !g.isCurrentPlayer(player) ||
 		g.gameState != PlayingHandGameState {
 		return false
 	}
 
-	if findCard(action.card, action.player.hand[:]) < 0 {
+	if findCard(action.Card, player.hand[:]) < 0 {
 		return false
 	}
 
 	if g.currentHandState.roundState.empty {
-		return !action.player.played[action.card]
+		return !player.played[action.Card]
 	}
 
-	hasAppropriateSuit := action.player.hasSuit(g.currentHandState.roundState.suit)
+	hasAppropriateSuit := player.hasSuit(g.currentHandState.roundState.suit)
 	trumpSuit, trumpSuitExists := g.getTrumpSuit()
-	hasTrumpSuit := trumpSuitExists && action.player.hasSuit(trumpSuit)
+	hasTrumpSuit := trumpSuitExists && player.hasSuit(trumpSuit)
 
-	canPlayAppropriateCard := hasAppropriateSuit && g.currentHandState.roundState.suit == action.card.Suit
-	canPlayTrumpCard := !hasAppropriateSuit && hasTrumpSuit && action.card.Suit == trumpSuit
+	canPlayAppropriateCard := hasAppropriateSuit && g.currentHandState.roundState.suit == action.Card.Suit
+	canPlayTrumpCard := !hasAppropriateSuit && hasTrumpSuit && action.Card.Suit == trumpSuit
 	canPlayAnyCard := !hasAppropriateSuit && !hasTrumpSuit
 
 	if canPlayAppropriateCard || canPlayTrumpCard || canPlayAnyCard {
-		return !action.player.played[action.card]
+		return !player.played[action.Card]
 	}
 
 	return false
@@ -49,7 +46,8 @@ func (p *Player) hasSuit(suit CardSuit) bool {
 }
 
 func (action PlayCardAction) apply(g *Game) {
-	g.playCard(action.player, action.card)
+	player := g.players[action.ppid]
+	g.playCard(player, action.Card)
 
 	if g.isCurrentRoundOver() {
 		g.reportRoundOver()

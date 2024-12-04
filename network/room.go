@@ -1,15 +1,17 @@
 package network
 
 import (
+	"maps"
 	"ognjen/go-pref/game"
+	"slices"
 )
 
 type RoomState int
 
 const (
 	WaitingRoomState  RoomState = 0
-	RunningRoomState            = 1
-	FinishedRoomState           = 2
+	RunningRoomState  RoomState = 1
+	FinishedRoomState RoomState = 2
 )
 
 type Room struct {
@@ -19,11 +21,10 @@ type Room struct {
 	register   chan *Client
 	unregister chan *Client
 
-	clients map[*Client]bool
-
-	broadcast chan []byte
+	clients map[string]*Client
 
 	recv chan InboundMessage
+	seq  int
 }
 
 func NewRoom() *Room {
@@ -31,33 +32,68 @@ func NewRoom() *Room {
 		roomState:  WaitingRoomState,
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
-		broadcast:  make(chan []byte),
+		clients:    make(map[string]*Client),
 		recv:       make(chan InboundMessage),
+		seq:        0,
 	}
 }
 
-func (r *Room) broadcastBytes(message []byte) {
-	for client := range r.clients {
-		select {
-		case client.send <- message:
-		default:
-			close(client.send)
-			delete(r.clients, client)
-		}
-	}
-}
-
-func (r *Room) broadcastString(message string) {
-	r.broadcastBytes([]byte(message))
-}
-
-func (r *Room) handleAction(action game.Action) {
+func (r *Room) handleAction(action game.Action) bool {
 	g := r.game
 	if g.Validate(action) {
 		g.Apply(action)
 
-		_ = g.Collect()
+		responses := g.Collect()
+		messages := r.messagesFromResponses(responses)
+		for _, m := range messages {
+			r.sendMessage(m)
+		}
+
+		return true
+	}
+
+	return false
+}
+
+func (room *Room) messagesFromResponses(responses []game.Response) []OutboundMessage {
+	var messages []OutboundMessage
+	for _, r := range responses {
+		messages = append(messages, room.messageFromResponse(r))
+	}
+
+	return messages
+}
+
+func (r *Room) messageFromResponse(response game.Response) OutboundMessage {
+	client := r.clientFromPid(response.RecepientPid())
+	return OutboundMessage{
+		Recepient: client,
+		Payload:   response,
+	}
+}
+
+func (r *Room) clientFromPid(pid string) *Client {
+	var client *Client
+	if pid == "" {
+		client = nil
+	} else {
+		client = r.clients[pid]
+	}
+
+	return client
+}
+
+func (r *Room) sendMessage(m OutboundMessage) {
+	if m.Recepient == nil {
+		r.broadcastMessage(m)
+		return
+	}
+	m.Recepient.send <- m
+}
+
+func (r *Room) broadcastMessage(m OutboundMessage) {
+	for _, c := range r.clients {
+		c.send <- m
 	}
 }
 
@@ -67,19 +103,42 @@ func (r *Room) Run() {
 	for {
 		select {
 		case client := <-r.register:
-			r.clients[client] = true
-			p := game.NewPlayer()
-			r.game.AddPlayer(p)
-			client.player = p
-			// r.broadcastString(client.name + " joined!")
+			r.broadcastMessage(r.NewServerMessage(nil, &ConnectedPayload{client.pid}))
+			if r.clients[client.pid] == nil {
+				r.game.AddPlayer(client.pid)
+			}
+			r.clients[client.pid] = client
+			r.sendLobby(client)
 		case client := <-r.unregister:
-			r.clients[client] = false
-			r.game.RemovePlayer(client.player)
-		case message := <-r.broadcast:
-			r.broadcastBytes(message)
+			delete(r.clients, client.pid)
+			r.broadcastMessage(r.NewServerMessage(nil, &DisconnectedPayload{client.pid}))
 		case message := <-r.recv:
-			action := message.Action()
-			r.handleAction(action)
+			action := message.Payload.(game.Action)
+			action.SetPlayerPid(message.Client.pid)
+			if !r.handleAction(action) {
+				r.sendMessage(OutboundMessage{
+					Seq:       message.Seq,
+					Recepient: message.Client,
+					Payload:   &InvalidAction{},
+				})
+			}
 		}
 	}
+}
+
+func (r *Room) sendLobby(rec *Client) {
+	pids := slices.Collect(maps.Keys(r.clients))
+	r.sendMessage(r.NewServerMessage(rec, &LobbyPayload{pids}))
+}
+
+func (r *Room) NewServerMessage(recepient *Client, payload Payload) OutboundMessage {
+	msg := OutboundMessage{
+		Seq:       r.seq,
+		Recepient: recepient,
+		Payload:   payload,
+	}
+
+	r.seq++
+
+	return msg
 }

@@ -1,5 +1,5 @@
 package game
 
 type PlayNowBidAction struct {
-	player *Player
+	// player *Player `json:"-"`
 }

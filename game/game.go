@@ -41,7 +41,7 @@ type Game struct {
 	gameState        GameState
 	dealerPlayer     *Player
 	currentHandState HandState
-	players          map[*Player]bool
+	players          map[string]*Player
 
 	responses []Response
 
@@ -71,27 +71,28 @@ type RoundState struct {
 func NewGame() *Game {
 	return &Game{
 		gameState: WaitingGameState,
-		players:   make(map[*Player]bool),
+		players:   make(map[string]*Player),
 		ready:     make(map[*Player]bool),
 		started:   false,
 	}
 }
 
-func (g *Game) AddPlayer(p *Player) bool {
-	g.players[p] = true
-	return true
-}
-
-func (g *Game) RemovePlayer(p *Player) {
-	delete(g.players, p)
+func (g *Game) AddPlayer(pid string) {
+	p := newPlayer(pid)
+	g.players[pid] = p
 }
 
 func (g *Game) Validate(a Action) bool {
-	if a == nil {
+	if a == nil || !g.pidExists(a.playerPid()) {
 		return false
 	}
 
 	return a.validate(g)
+}
+
+func (g *Game) pidExists(pid string) bool {
+	_, e := g.players[pid]
+	return e
 }
 
 func (g *Game) Apply(a Action) {
@@ -124,7 +125,7 @@ func (g *Game) dealCards() {
 	}
 
 	s := 0
-	for p := range g.players {
+	for _, p := range g.players {
 		copy(p.hand[:], deck[s:s+10])
 		slices.SortFunc(p.hand[:], cardCompare)
 		s += 10
@@ -139,14 +140,12 @@ func (g *Game) currentPlayer() *Player {
 }
 
 func (g *Game) sendScoresToPlayers() {
-	for p := range g.players {
-		g.addResponse(&SendScoresResponse{p})
-	}
+	g.addResponse(&SendScoresResponse{})
 }
 
 func (g *Game) makeReady(p *Player) {
 	g.ready[p] = true
-	g.addResponse(&ReadyResponse{p})
+	g.addResponse(&ReadyResponse{p.pid})
 }
 
 func (g *Game) isEveryoneReady() bool {
@@ -164,7 +163,7 @@ func (g *Game) setupPlayers(startingScore int) {
 	var prev *Player = nil
 	var first *Player = nil
 	count := 0
-	for p := range g.players {
+	for _, p := range g.players {
 		if prev != nil {
 			prev.next = p
 			p.score.soups[prev] = 0
@@ -214,17 +213,17 @@ func (g *Game) startNewHand() {
 }
 
 func (g *Game) sendHandsToPlayers() {
-	for p := range g.players {
+	for _, p := range g.players {
 		g.sendHandToPlayer(p)
 	}
 }
 
 func (g *Game) sendHandToPlayer(p *Player) {
-	g.addResponse(&SendCardsResponse{p})
+	g.addResponse(&SendCardsResponse{p.pid})
 }
 
 func (g *Game) clearPlayedMaps() {
-	for p := range g.players {
+	for _, p := range g.players {
 		clear(p.played)
 	}
 }
@@ -234,7 +233,7 @@ func (g *Game) isCurrentPlayer(p *Player) bool {
 }
 
 func (g *Game) reportBid(p *Player) {
-	g.addResponse(&NewBidResponse{p, g.currentHandState.bid})
+	g.addResponse(&NewBidResponse{p.pid, g.currentHandState.bid})
 }
 
 func (g *Game) isBiddingMaxed() bool {
@@ -282,12 +281,12 @@ func (g *Game) moveToNextActivePlayer() {
 }
 
 func (g *Game) recordPlayerComingState(p *Player, coming bool) {
-	g.addResponse(&PlayerComingResponse{coming, p})
+	g.addResponse(&PlayerComingResponse{coming, p.pid})
 }
 
 func (g *Game) makePlayerPassed(p *Player) {
 	g.currentHandState.passed[p] = true
-	g.addResponse(&PlayerPassedResponse{p})
+	g.addResponse(&PlayerPassedResponse{p.pid})
 }
 
 func (g *Game) isBiddingWon() bool {
@@ -300,7 +299,7 @@ func (g *Game) transitionToState(state GameState) {
 }
 
 func (g *Game) makeNonPassedPlayerCurrent() {
-	for p := range g.players {
+	for _, p := range g.players {
 		if !g.currentHandState.passed[p] {
 			g.currentHandState.currentPlayer = p
 			break
@@ -377,16 +376,16 @@ func (g *Game) reportSuccess() {
 	g.reportSuccessToOwner()
 
 	owner := g.currentHandState.bidWinner
-	for p := range g.players {
+	for _, p := range g.players {
 		if p == owner {
 			continue
 		}
 
 		if g.currentHandState.roundsWon[p] >= 2 || 10-g.currentHandState.roundsWon[owner] <= 6 {
-			g.addResponse(&PlayerResultResponse{Success, p})
+			g.addResponse(&PlayerResultResponse{Success, p.pid})
 		} else {
 			p.score.main += int(g.currentHandState.gameType) * 2
-			g.addResponse(&PlayerResultResponse{Failiure, p})
+			g.addResponse(&PlayerResultResponse{Failiure, p.pid})
 		}
 
 		p.score.soups[owner] += g.currentHandState.roundsWon[p] * int(g.currentHandState.gameType) * 2
@@ -397,10 +396,10 @@ func (g *Game) reportSuccessToOwner() {
 	owner := g.currentHandState.bidWinner
 	if g.currentHandState.roundsWon[owner] >= 6 {
 		owner.score.main -= int(g.currentHandState.gameType) * 2
-		g.addResponse(&PlayerResultResponse{Success, owner})
+		g.addResponse(&PlayerResultResponse{Success, owner.pid})
 	} else {
 		owner.score.main += int(g.currentHandState.gameType) * 2
-		g.addResponse(&PlayerResultResponse{Failiure, owner})
+		g.addResponse(&PlayerResultResponse{Failiure, owner.pid})
 	}
 }
 

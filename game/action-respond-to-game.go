@@ -1,16 +1,13 @@
 package game
 
 type RespondToGameTypeAction struct {
-	pass   bool
-	player *Player
-}
-
-func NewRespondToGameTypeAction(pass bool, player *Player) RespondToGameTypeAction {
-	return RespondToGameTypeAction{pass, player}
+	Pass bool `json:"pass"`
+	ActionBase
 }
 
 func (action RespondToGameTypeAction) validate(g *Game) bool {
-	if !g.isCurrentPlayer(action.player) ||
+	player := g.players[action.ppid]
+	if !g.isCurrentPlayer(player) ||
 		g.gameState != RespondingToGameTypeGameState {
 		return false
 	}
@@ -19,9 +16,10 @@ func (action RespondToGameTypeAction) validate(g *Game) bool {
 }
 
 func (action RespondToGameTypeAction) apply(g *Game) {
-	if action.pass {
-		g.recordPlayerComingState(action.player, NotComing)
-		g.makePlayerPassed(action.player)
+	player := g.players[action.ppid]
+	if action.Pass {
+		g.recordPlayerComingState(player, NotComing)
+		g.makePlayerPassed(player)
 
 		if len(g.currentHandState.passed) == 2 {
 			g.currentHandState.bidWinner.score.main -= int(g.currentHandState.gameType) * 2
@@ -30,7 +28,7 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 			return
 		}
 	} else {
-		g.recordPlayerComingState(action.player, Coming)
+		g.recordPlayerComingState(player, Coming)
 	}
 
 	g.moveToNextActivePlayer()
@@ -39,7 +37,7 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 		if g.currentHandState.bid == SansBid {
 			beforePlayer := g.currentHandState.currentPlayer.next.next
 			if g.currentHandState.passed[beforePlayer] {
-				g.currentHandState.currentPlayer = action.player.next
+				g.currentHandState.currentPlayer = player.next
 			} else {
 				g.currentHandState.currentPlayer = beforePlayer
 			}

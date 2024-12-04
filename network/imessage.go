@@ -1,7 +1,7 @@
 package network
 
-import "ognjen/go-pref/game"
-
-type InboundMessage interface {
-	Action() game.Action
+type InboundMessage struct {
+	Seq     int         `json:"seq"`
+	Payload interface{} `json:"payload"`
+	Client  *Client     `json:"-"`
 }

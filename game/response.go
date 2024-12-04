@@ -1,3 +1,6 @@
 package game
 
-type Response interface{}
+type Response interface {
+	Type() string
+	RecepientPid() string
+}

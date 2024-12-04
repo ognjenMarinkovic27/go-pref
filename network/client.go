@@ -5,12 +5,11 @@
 package network
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
-
-	"ognjen/go-pref/game"
 
 	"github.com/gorilla/websocket"
 )
@@ -29,11 +28,6 @@ const (
 	maxMessageSize = 512
 )
 
-var (
-	newline = []byte{'\n'}
-	space   = []byte{' '}
-)
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -45,17 +39,15 @@ var upgrader = websocket.Upgrader{
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	name string
+	pid string
 
 	room *Room
 
 	// The websocket connection.
 	conn *websocket.Conn
 
-	// Buffered channel of outbound messages.
-	send chan []byte
-
-	player *game.Player
+	// channel of outbound messages.
+	send chan OutboundMessage
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -82,7 +74,8 @@ func (c *Client) readPump() {
 		}
 		fmt.Println("Message from client:", string(messageValue))
 
-		message, err := dataToMessage(messageValue)
+		message, err := dataToMessage(messageValue, c)
+		message.Client = c
 		if err != nil {
 			fmt.Println("Error unmarshaling JSON message:", err)
 		} else {
@@ -105,7 +98,6 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			fmt.Println("sending", string(message), "to client")
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
@@ -117,15 +109,12 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			w.Write(message)
-
-			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.send)
+			bytes, err := json.Marshal(message)
+			if err != nil {
+				fmt.Println("error with marshalling", message)
+				return
 			}
-
+			w.Write(bytes)
 			if err := w.Close(); err != nil {
 				return
 			}
@@ -146,9 +135,9 @@ func ServeWs(room *Room, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.URL.Query().Get("name")
+	name := r.URL.Query().Get("pid")
 
-	client := &Client{name: name, room: room, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{pid: name, room: room, conn: conn, send: make(chan OutboundMessage)}
 	client.room.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in

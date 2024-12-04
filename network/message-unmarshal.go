@@ -3,37 +3,41 @@ package network
 import (
 	"encoding/json"
 	"errors"
+	"ognjen/go-pref/game"
 )
 
-func dataToMessage(bytes []byte) (InboundMessage, error) {
+func dataToMessage(bytes []byte, client *Client) (InboundMessage, error) {
 	mtype, err := readMessageType(bytes)
 	if err != nil {
-		return nil, err
+		return InboundMessage{}, err
 	}
 
 	var msg InboundMessage
+
+	/* TODO: Ugly ass switch, but whats the alternative? */
 	switch mtype {
 	case "bid":
-		msg = &BidMessage{}
+		msg.Payload = &game.BidAction{}
 	case "pass-bid":
-		msg = &PassBidMessage{}
+		msg.Payload = &game.PassBidAction{}
 	case "choose-game":
-		msg = &ChooseGameTypeMessage{}
+		msg.Payload = &game.PassBidAction{}
 	case "choose-discard":
-		msg = &ChooseDiscardCardsMessage{}
+		msg.Payload = &game.ChooseDiscardCardsAction{}
 	case "play-card":
-		msg = &PlayCardMessage{}
+		msg.Payload = &game.PlayCardAction{}
 	case "ready":
-		msg = &ReadyMessage{}
+		msg.Payload = &game.ReadyAction{}
 	default:
-		return nil, errors.New("type unrecognized")
+		return InboundMessage{}, errors.New("type unrecognized")
 	}
 
-	err = json.Unmarshal(bytes, msg)
+	err = json.Unmarshal(bytes, &msg)
 	if err != nil {
-		return nil, err
+		return InboundMessage{}, err
 	}
 
+	msg.Client = client
 	return msg, nil
 }
 

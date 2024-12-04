@@ -1,6 +1,14 @@
 package game
 
 type NewBidResponse struct {
-	bidder *Player
-	bid    Bid
+	BidderPid string
+	Bid       Bid
+}
+
+func (r *NewBidResponse) Type() string {
+	return "new-bid"
+}
+
+func (r *NewBidResponse) RecepientPid() string {
+	return ""
 }

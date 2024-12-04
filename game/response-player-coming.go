@@ -6,6 +6,14 @@ const (
 )
 
 type PlayerComingResponse struct {
-	Coming bool
-	Player *Player
+	Coming    bool
+	PlayerPid string
+}
+
+func (r *PlayerComingResponse) Type() string {
+	return "player-coming"
+}
+
+func (r *PlayerComingResponse) RecepientPid() string {
+	return ""
 }

@@ -1,15 +1,12 @@
 package game
 
 type ReadyAction struct {
-	player *Player
-}
-
-func NewReadyAction(player *Player) ReadyAction {
-	return ReadyAction{player}
+	ActionBase `json:"-"`
 }
 
 func (action ReadyAction) validate(g *Game) bool {
-	if g.gameState == WaitingGameState && !g.ready[action.player] {
+	player := g.players[action.ppid]
+	if g.gameState == WaitingGameState && !g.ready[player] {
 		return true
 	}
 
@@ -17,7 +14,8 @@ func (action ReadyAction) validate(g *Game) bool {
 }
 
 func (action ReadyAction) apply(g *Game) {
-	g.makeReady(action.player)
+	player := g.players[action.ppid]
+	g.makeReady(player)
 	if g.isEveryoneReady() {
 		g.startGame(60)
 	}

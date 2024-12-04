@@ -6,6 +6,14 @@ const (
 )
 
 type PlayerResultResponse struct {
-	Success bool
-	Player  *Player
+	Success   bool
+	PlayerPid string
+}
+
+func (r *PlayerResultResponse) Type() string {
+	return "player-result"
+}
+
+func (r *PlayerResultResponse) RecepientPid() string {
+	return ""
 }

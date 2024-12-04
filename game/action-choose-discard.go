@@ -3,24 +3,21 @@ package game
 import "slices"
 
 type ChooseDiscardCardsAction struct {
-	cards  [2]Card
-	player *Player
-}
-
-func NewChooseDiscardCardsAction(cards [2]Card, player *Player) ChooseDiscardCardsAction {
-	return ChooseDiscardCardsAction{cards, player}
+	Cards      [2]Card `json:"cards"`
+	ActionBase `json:"-"`
 }
 
 func (action ChooseDiscardCardsAction) validate(g *Game) bool {
-	if !g.isCurrentPlayer(action.player) ||
+	player := g.players[action.ppid]
+	if !g.isCurrentPlayer(player) ||
 		g.gameState != ChoosingCardsGameState {
 		return false
 	}
 
 	var found [2]bool
 
-	foundInHand := containsCards(action.cards[:], action.player.hand[:])
-	foundInHidden := containsCards(action.cards[:], g.currentHandState.hiddenCards[:])
+	foundInHand := containsCards(action.Cards[:], player.hand[:])
+	foundInHidden := containsCards(action.Cards[:], g.currentHandState.hiddenCards[:])
 
 	for i := range found {
 		found[i] = foundInHand[i] || foundInHidden[i]
@@ -42,18 +39,19 @@ func containsCards(cards []Card, searchSet []Card) (found [2]bool) {
 }
 
 func (action ChooseDiscardCardsAction) apply(g *Game) {
-	for _, c := range action.cards {
-		index := findCard(c, action.player.hand[:])
+	player := g.players[action.ppid]
+	for _, c := range action.Cards {
+		index := findCard(c, player.hand[:])
 		if index < 0 {
 			continue
 		}
 
-		swapIndex := findDifferentThan(action.cards[:], g.currentHandState.hiddenCards[:])
+		swapIndex := findDifferentThan(action.Cards[:], g.currentHandState.hiddenCards[:])
 
-		swapCards(&action.player.hand[index], &g.currentHandState.hiddenCards[swapIndex])
+		swapCards(&player.hand[index], &g.currentHandState.hiddenCards[swapIndex])
 	}
 
-	slices.SortFunc(action.player.hand[:], cardCompare)
+	slices.SortFunc(player.hand[:], cardCompare)
 
 	g.transitionToState(ChoosingGameTypeGameState)
 }
