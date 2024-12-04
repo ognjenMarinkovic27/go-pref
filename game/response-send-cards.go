@@ -1,7 +1,8 @@
 package game
 
 type SendCardsResponse struct {
-	PlayerPid string `json:"-"`
+	Cards     [10]Card `json:"cards"`
+	PlayerPid string   `json:"-"`
 }
 
 func (r *SendCardsResponse) Type() string {

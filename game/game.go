@@ -219,7 +219,7 @@ func (g *Game) sendHandsToPlayers() {
 }
 
 func (g *Game) sendHandToPlayer(p *Player) {
-	g.addResponse(&SendCardsResponse{p.pid})
+	g.addResponse(&SendCardsResponse{p.hand, p.pid})
 }
 
 func (g *Game) clearPlayedMaps() {
