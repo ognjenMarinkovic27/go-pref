@@ -1,7 +1,7 @@
 package game
 
 type ChoosingCardsResponse struct {
-	Chooser     *Player
+	ChooserPid  string
 	HiddenCards [2]Card
 }
 

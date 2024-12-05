@@ -243,7 +243,7 @@ func (g *Game) isBiddingMaxed() bool {
 func (g *Game) endBidding() {
 	g.transitionToState(ChoosingCardsGameState)
 	g.makeNonPassedPlayerCurrent()
-	g.addResponse(&ChoosingCardsResponse{g.currentPlayer(), g.currentHandState.hiddenCards})
+	g.addResponse(&ChoosingCardsResponse{g.currentPlayer().pid, g.currentHandState.hiddenCards})
 }
 
 func (g *Game) hasPassed(p *Player) bool {
