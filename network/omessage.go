@@ -9,31 +9,23 @@ type Payload interface {
 }
 
 type OutboundMessage struct {
-	Recepient *Client
-	Seq       int
-	Payload   Payload
-}
-
-type rawMessage struct {
-	Recepient *Client     `json:"-"`
-	Seq       int         `json:"seq"`
-	Payload   interface{} `json:"payload"`
+	Recepient *Client `json:"-"`
+	Seq       int     `json:"seq"`
+	Payload   Payload `json:"payload"`
 }
 
 func (m OutboundMessage) MarshalJSON() ([]byte, error) {
-	typedPayload := struct {
-		PayloadType string  `json:"payload-type"`
-		Payload     Payload `json:"payload"`
-	}{
-		PayloadType: m.Payload.Type(),
-		Payload:     m.Payload,
+	type Alias OutboundMessage
+
+	type TypedOutboundMessage struct {
+		Type string `json:"type"`
+		Alias
 	}
 
-	rmsg := rawMessage{
-		Recepient: m.Recepient,
-		Seq:       m.Seq,
-		Payload:   typedPayload,
+	typedMessage := TypedOutboundMessage{
+		Type:  m.Payload.Type(),
+		Alias: (Alias)(m),
 	}
 
-	return json.Marshal(rmsg)
+	return json.Marshal(typedMessage)
 }
