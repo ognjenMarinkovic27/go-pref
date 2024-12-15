@@ -1,6 +1,8 @@
 package game
 
-type StartGameResponse struct{}
+type StartGameResponse struct {
+	PidOrder []string `json:"pidOrder"`
+}
 
 func (r *StartGameResponse) Type() string {
 	return "start-game"

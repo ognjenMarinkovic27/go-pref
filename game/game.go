@@ -161,7 +161,11 @@ func (g *Game) isEveryoneReady() bool {
 }
 
 func (g *Game) startGame(startingScore int) {
-	g.addResponse(&StartGameResponse{})
+	var resp StartGameResponse
+	for p, _ := range g.players {
+		resp.PidOrder = append(resp.PidOrder, p)
+	}
+	g.addResponse(&resp)
 	g.started = true
 	g.setupPlayers(startingScore)
 	g.startNewHand()
