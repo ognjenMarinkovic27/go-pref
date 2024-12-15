@@ -5,7 +5,7 @@ type ReadyResponse struct {
 }
 
 func (r *ReadyResponse) Type() string {
-	return "ready"
+	return "ready-notif"
 }
 
 func (r *ReadyResponse) RecepientPid() string {

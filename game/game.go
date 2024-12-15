@@ -82,6 +82,14 @@ func (g *Game) AddPlayer(pid string) {
 	g.players[pid] = p
 }
 
+func (g *Game) RemovePlayer(pid string) {
+	delete(g.players, pid)
+}
+
+func (g *Game) Started() bool {
+	return g.started
+}
+
 func (g *Game) Validate(a Action) bool {
 	if a == nil || !g.pidExists(a.playerPid()) {
 		return false

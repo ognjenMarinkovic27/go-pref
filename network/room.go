@@ -110,6 +110,9 @@ func (r *Room) Run() {
 			r.clients[client.pid] = client
 			r.sendLobby(client)
 		case client := <-r.unregister:
+			if !r.game.Started() {
+				r.game.RemovePlayer(client.pid)
+			}
 			delete(r.clients, client.pid)
 			r.broadcastMessage(r.NewServerMessage(nil, &DisconnectedPayload{client.pid}))
 		case message := <-r.recv:
