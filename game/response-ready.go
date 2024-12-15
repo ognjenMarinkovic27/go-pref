@@ -1,7 +1,7 @@
 package game
 
 type ReadyResponse struct {
-	ReadyPlayerPid string
+	ReadyPlayerPid string `json:"readyPid"`
 }
 
 func (r *ReadyResponse) Type() string {
