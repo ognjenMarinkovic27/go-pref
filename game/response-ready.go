@@ -9,5 +9,5 @@ func (r *ReadyResponse) Type() string {
 }
 
 func (r *ReadyResponse) RecepientPid() string {
-	return nil
+	return ""
 }
