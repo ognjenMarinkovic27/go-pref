@@ -50,7 +50,7 @@ type Game struct {
 }
 
 type HandState struct {
-	firstPlayer   *Player
+	firstBidder   *Player
 	currentPlayer *Player
 	bidWinner     *Player
 	bid           Bid
@@ -202,7 +202,7 @@ func (g *Game) startNewHand() {
 	g.addResponse(&StartHandResponse{})
 	g.gameState = BiddingGameState
 	g.currentHandState = HandState{
-		firstPlayer:   nil,
+		firstBidder:   nil,
 		currentPlayer: g.nextPlayer(g.dealerPlayer),
 		passed:        make(map[*Player]bool),
 		bid:           TwoBid,
@@ -263,11 +263,11 @@ func (g *Game) hasPassed(p *Player) bool {
 }
 
 func (g *Game) isFirstBid() bool {
-	return g.currentHandState.firstPlayer == nil
+	return g.currentHandState.firstBidder == nil
 }
 
 func (g *Game) isPlayerFirstToBid(p *Player) bool {
-	return g.currentHandState.firstPlayer == p
+	return g.currentHandState.firstBidder == p
 }
 
 func (g *Game) chooseGameType(gameType GameType) {
@@ -302,7 +302,7 @@ func (g *Game) makePlayerPassed(p *Player) {
 }
 
 func (g *Game) isBiddingWon() bool {
-	return len(g.currentHandState.passed) == 2 && g.currentHandState.firstPlayer != nil
+	return len(g.currentHandState.passed) == 2 && g.currentHandState.firstBidder != nil
 }
 
 func (g *Game) transitionToState(state GameState) {

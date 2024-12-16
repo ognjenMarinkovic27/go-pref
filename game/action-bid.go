@@ -19,7 +19,7 @@ func (action BidAction) validate(g *Game) bool {
 func (action BidAction) apply(g *Game) {
 	player := g.players[action.ppid]
 	if g.isFirstBid() {
-		g.currentHandState.firstPlayer = player
+		g.currentHandState.firstBidder = player
 	}
 
 	if !g.isPlayerFirstToBid(player) {
