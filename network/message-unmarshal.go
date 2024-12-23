@@ -24,6 +24,8 @@ func dataToMessage(bytes []byte, client *Client) (InboundMessage, error) {
 		msg.Payload = &game.ChooseGameTypeAction{}
 	case "choose-discard":
 		msg.Payload = &game.ChooseDiscardCardsAction{}
+	case "game-respond":
+		msg.Payload = &game.RespondToGameTypeAction{}
 	case "play-card":
 		msg.Payload = &game.PlayCardAction{}
 	case "ready":
