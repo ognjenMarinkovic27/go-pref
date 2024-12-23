@@ -1,7 +1,7 @@
 package game
 
 type ChooseGameTypeAction struct {
-	GameType   GameType `json:"game-type"`
+	GameType   GameType `json:"gameType"`
 	ActionBase `json:"-"`
 }
 
