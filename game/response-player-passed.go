@@ -1,7 +1,7 @@
 package game
 
 type PlayerPassedResponse struct {
-	PasserPid string
+	PasserPid string `json:"pid"`
 }
 
 func (r *PlayerPassedResponse) Type() string {

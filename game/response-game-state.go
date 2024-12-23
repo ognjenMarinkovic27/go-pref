@@ -1,7 +1,7 @@
 package game
 
 type GameStateResponse struct {
-	GameState GameState
+	GameState GameState `json:"gameState"`
 }
 
 func (r *GameStateResponse) Type() string {

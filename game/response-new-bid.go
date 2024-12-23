@@ -1,8 +1,8 @@
 package game
 
 type NewBidResponse struct {
-	BidderPid string
-	Bid       Bid
+	BidderPid string `json:"bidderPid"`
+	Bid       Bid    `json:"bid"`
 }
 
 func (r *NewBidResponse) Type() string {

@@ -199,11 +199,14 @@ func (g *Game) setupPlayers(startingScore int) {
 }
 
 func (g *Game) startNewHand() {
-	g.addResponse(&StartHandResponse{})
+	firstPlayer := g.nextPlayer(g.dealerPlayer)
+	g.addResponse(&StartHandResponse{
+		FirstPid: firstPlayer.pid,
+	})
 	g.gameState = BiddingGameState
 	g.currentHandState = HandState{
 		firstBidder:   nil,
-		currentPlayer: g.nextPlayer(g.dealerPlayer),
+		currentPlayer: firstPlayer,
 		passed:        make(map[*Player]bool),
 		bid:           TwoBid,
 		gameType:      NoneGameType,
@@ -248,12 +251,12 @@ func (g *Game) reportBid(p *Player) {
 	g.addResponse(&NewBidResponse{p.pid, g.currentHandState.bid})
 }
 
-func (g *Game) isBiddingMaxed() bool {
-	return g.currentHandState.bid == SansBid
+func (g *Game) isBiddingMaxed(p *Player) bool {
+	return g.currentHandState.bid == SansBid && g.shouldIncreaseBid(p)
 }
 
 func (g *Game) endBidding() {
-	g.transitionToState(ChoosingCardsGameState)
+	g.transitionToStateQuietly(ChoosingCardsGameState)
 	g.makeNonPassedPlayerCurrent()
 	g.addResponse(&ChoosingCardsResponse{g.currentPlayer().pid, g.currentHandState.hiddenCards})
 }
@@ -266,8 +269,11 @@ func (g *Game) isFirstBid() bool {
 	return g.currentHandState.firstBidder == nil
 }
 
-func (g *Game) isPlayerFirstToBid(p *Player) bool {
-	return g.currentHandState.firstBidder == p
+func (g *Game) shouldIncreaseBid(p *Player) bool {
+	fb := g.currentHandState.firstBidder
+
+	return fb != p &&
+		(!g.currentHandState.passed[fb] || fb.next != p)
 }
 
 func (g *Game) chooseGameType(gameType GameType) {
@@ -306,8 +312,12 @@ func (g *Game) isBiddingWon() bool {
 }
 
 func (g *Game) transitionToState(state GameState) {
-	g.gameState = state
+	g.transitionToStateQuietly(state)
 	g.addResponse(&GameStateResponse{g.gameState})
+}
+
+func (g *Game) transitionToStateQuietly(state GameState) {
+	g.gameState = state
 }
 
 func (g *Game) makeNonPassedPlayerCurrent() {

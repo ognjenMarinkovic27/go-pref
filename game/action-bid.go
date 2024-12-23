@@ -8,7 +8,7 @@ func (action BidAction) validate(g *Game) bool {
 	player := g.players[action.ppid]
 	if g.gameState == BiddingGameState &&
 		g.isCurrentPlayer(player) &&
-		!g.isBiddingMaxed() &&
+		!g.isBiddingMaxed(player) &&
 		!g.hasPassed(player) {
 		return true
 	}
@@ -22,7 +22,7 @@ func (action BidAction) apply(g *Game) {
 		g.currentHandState.firstBidder = player
 	}
 
-	if !g.isPlayerFirstToBid(player) {
+	if g.shouldIncreaseBid(player) {
 		g.currentHandState.bid++
 	}
 

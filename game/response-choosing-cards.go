@@ -1,8 +1,8 @@
 package game
 
 type ChoosingCardsResponse struct {
-	ChooserPid  string
-	HiddenCards [2]Card
+	ChooserPid  string  `json:"chooserPid"`
+	HiddenCards [2]Card `json:"hiddenCards"`
 }
 
 func (r *ChoosingCardsResponse) Type() string {
