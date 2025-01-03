@@ -164,7 +164,7 @@ func (g *Game) isEveryoneReady() bool {
 
 func (g *Game) startGame(startingScore int) {
 	var resp StartGameResponse
-	for p, _ := range g.players {
+	for p := range g.players {
 		resp.PidOrder = append(resp.PidOrder, p)
 	}
 	g.addResponse(&resp)
