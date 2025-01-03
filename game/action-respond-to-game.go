@@ -18,7 +18,7 @@ func (action RespondToGameTypeAction) validate(g *Game) bool {
 func (action RespondToGameTypeAction) apply(g *Game) {
 	player := g.players[action.ppid]
 	if action.Pass {
-		g.recordPlayerComingState(player, NotComing)
+		g.recordPlayerGoingState(player, NotComing)
 		g.makePlayerPassed(player)
 
 		if len(g.currentHandState.passed) == 2 {
@@ -28,7 +28,7 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 			return
 		}
 	} else {
-		g.recordPlayerComingState(player, Coming)
+		g.recordPlayerGoingState(player, Coming)
 	}
 
 	g.moveToNextActivePlayer()

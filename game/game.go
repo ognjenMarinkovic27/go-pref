@@ -298,8 +298,8 @@ func (g *Game) moveToNextActivePlayer() {
 	}
 }
 
-func (g *Game) recordPlayerComingState(p *Player, coming bool) {
-	g.addResponse(&PlayerComingResponse{coming, p.pid})
+func (g *Game) recordPlayerGoingState(p *Player, coming bool) {
+	g.addResponse(&PlayerGoingResponse{coming, p.pid})
 }
 
 func (g *Game) makePlayerPassed(p *Player) {

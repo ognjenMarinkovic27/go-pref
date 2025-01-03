@@ -5,15 +5,15 @@ const (
 	NotComing = false
 )
 
-type PlayerComingResponse struct {
+type PlayerGoingResponse struct {
 	Coming    bool
 	PlayerPid string
 }
 
-func (r *PlayerComingResponse) Type() string {
-	return "player-coming"
+func (r *PlayerGoingResponse) Type() string {
+	return "player-going"
 }
 
-func (r *PlayerComingResponse) RecepientPid() string {
+func (r *PlayerGoingResponse) RecepientPid() string {
 	return ""
 }
