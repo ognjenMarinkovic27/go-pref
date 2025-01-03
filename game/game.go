@@ -348,7 +348,7 @@ func (g *Game) playCard(p *Player, card Card) {
 
 	p.played[card] = true
 
-	g.addResponse(&CardPlayedResponse{p, card})
+	g.addResponse(&CardPlayedResponse{p.pid, card})
 }
 
 func (g *Game) isCurrentRoundOver() bool {
