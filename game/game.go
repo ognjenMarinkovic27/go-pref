@@ -38,7 +38,9 @@ var gameTypeToSuit = map[GameType]CardSuit{
 }
 
 type Game struct {
-	gameState        GameState
+	gameState GameState
+
+	/* TODO: dealer player is actually first player, should rename */
 	dealerPlayer     *Player
 	currentHandState HandState
 	players          map[string]*Player
@@ -298,8 +300,8 @@ func (g *Game) moveToNextActivePlayer() {
 	}
 }
 
-func (g *Game) recordPlayerGoingState(p *Player, coming bool) {
-	g.addResponse(&PlayerGoingResponse{coming, p.pid})
+func (g *Game) recordPlayerGoingState(p *Player, going bool) {
+	g.addResponse(&PlayerGoingResponse{going, p.pid})
 }
 
 func (g *Game) makePlayerPassed(p *Player) {

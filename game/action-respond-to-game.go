@@ -19,7 +19,7 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 	player := g.players[action.ppid]
 	if action.Pass {
 		g.recordPlayerGoingState(player, NotGoing)
-		g.makePlayerPassed(player)
+		g.currentHandState.passed[player] = true
 
 		if len(g.currentHandState.passed) == 2 {
 			g.currentHandState.bidWinner.score.main -= int(g.currentHandState.gameType) * 2
@@ -42,7 +42,7 @@ func (action RespondToGameTypeAction) apply(g *Game) {
 				g.currentHandState.currentPlayer = beforePlayer
 			}
 		} else {
-			g.currentHandState.currentPlayer = g.dealerPlayer.next
+			g.currentHandState.currentPlayer = g.dealerPlayer
 		}
 
 		g.transitionToState(PlayingHandGameState)
