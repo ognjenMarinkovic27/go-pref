@@ -1,13 +1,13 @@
 package game
 
 const (
-	Coming    = true
-	NotComing = false
+	Going    = true
+	NotGoing = false
 )
 
 type PlayerGoingResponse struct {
-	Coming    bool
-	PlayerPid string
+	Going     bool   `json:"going"`
+	PlayerPid string `json:"pid"`
 }
 
 func (r *PlayerGoingResponse) Type() string {
